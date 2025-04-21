@@ -2,8 +2,8 @@
 """
 Batch Executive Summary Generator
 
-This script processes client or competitor news data from a CSV file and generates executive summaries
-in batches using Claude API, then combines them into a single markdown file.
+This script processes news data from a CSV file (clients, competitors, topics) and generates executive summaries
+in batches using Claude API, then combines them into a single markdown file organized by categories.
 """
 
 import os
@@ -11,24 +11,38 @@ import json
 import pandas as pd
 from datetime import datetime
 import time
+import re
+from typing import Dict, List, Tuple, Any, Optional, Union
+
 from dotenv import load_dotenv
-from anthropic import Anthropic
 
-# Load environment variables from .env
+# Import from local modules
+from config.config import (
+    SUMMARY_BATCH_SIZE, TOPIC_CATEGORIES, DATA_DIR
+)
+from services import ClaudeApiClient
+from templates import (
+    COMPANY_PROMPT_TEMPLATE, TOPIC_PROMPT_TEMPLATE, COMBINED_REPORT_HEADER
+)
+from utils import (
+    load_entities, get_entity_name, get_topic_category,
+    generate_timestamp
+)
+
+# Load environment variables
 load_dotenv()
-API_KEY = os.getenv('ANTHROPIC_API_KEY')
 
-# Make sure data directory exists
-if not os.path.exists('data'):
-    os.makedirs('data')
+# Create data directory if it doesn't exist
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
-# Configuration
-BATCH_SIZE = 5  # Number of clients per API call
-MAX_TOKENS = 4000  # Max tokens for Claude response
-MODEL = 'claude-3-sonnet-20240229'  # Claude model to use
 
 def load_entity_news(csv_file, entity_type="client"):
-    """Load news data from CSV and group by entity (client or competitor)"""
+    """
+    Load news data from CSV and group by entity (client, competitor or topic)
+    
+    For topics, the entity name is expected to be in the format "Category: Topic Name"
+    """
     if not os.path.exists(csv_file):
         raise FileNotFoundError(f"CSV file not found: {csv_file}")
     
@@ -37,7 +51,48 @@ def load_entity_news(csv_file, entity_type="client"):
     
     # Get unique list of entities
     entities = df['client'].unique().tolist()
-    print(f"Found {len(entities)} unique {entity_type}s in the data")
+    
+    # For topic data, extract categories and sort by predefined order
+    if entity_type == "topic":
+        # Extract categories and organize entities by category
+        categorized_entities = {}
+        for entity in entities:
+            # Extract category and topic name from entity
+            if ":" in entity:
+                category, topic_name = entity.split(":", 1)
+                category = category.strip()
+                if category not in categorized_entities:
+                    categorized_entities[category] = []
+                categorized_entities[category].append(entity)
+            else:
+                # If no category is found, put in "Other"
+                category = "Other"
+                if category not in categorized_entities:
+                    categorized_entities[category] = []
+                categorized_entities[category].append(entity)
+        
+        # Sort categories by predefined order, with any additional categories at the end
+        sorted_categories = []
+        for category in TOPIC_CATEGORIES:
+            if category in categorized_entities:
+                sorted_categories.append(category)
+        
+        # Add any categories not in predefined list
+        for category in categorized_entities:
+            if category not in sorted_categories:
+                sorted_categories.append(category)
+        
+        # Create a flat sorted entities list based on sorted categories
+        sorted_entities = []
+        for category in sorted_categories:
+            sorted_entities.extend(sorted(categorized_entities[category]))
+        
+        entities = sorted_entities
+        print(f"Found {len(entities)} unique industry topics in {len(sorted_categories)} categories")
+    else:
+        # For clients or competitors, sort alphabetically
+        entities = sorted(entities)
+        print(f"Found {len(entities)} unique {entity_type}s in the data")
     
     # Group news by entity
     entity_news = {}
@@ -59,125 +114,41 @@ def load_entity_news(csv_file, entity_type="client"):
     
     return entity_news, entities
 
+
 def create_prompt_for_batch(entity_batch, entity_news, entity_type="client"):
-    """Create a prompt for a batch of entities (clients or competitors)"""
+    """Create a prompt for a batch of entities (clients, competitors, or topics)"""
     # Extract just the news for this batch of entities
     batch_news = {entity: entity_news[entity] for entity in entity_batch}
     
-    # Determine prompt template based on entity type
+    # Format the news data as JSON string
+    news_data_str = json.dumps(batch_news, indent=2)
+    
+    # Determine prompt template and format it based on entity type
     if entity_type == "client":
         title = "Client Executive News Summary"
         focus = "financial service clients"
-    else:  # competitor
+        prompt = COMPANY_PROMPT_TEMPLATE.format(
+            focus=focus,
+            title=title,
+            news_data=news_data_str
+        )
+    elif entity_type == "competitor":
         title = "Competitor Executive News Summary"
         focus = "financial service competitors"
-    
-    # Prepare data for Claude API
-    prompt_template = """## Executive News Summary Prompt Template
-
-You are tasked with creating concise executive news summaries for {focus}. These summaries will be provided to executives who develop software and back office services for financial service companies. Your output must be direct, factual, and focused only on the most relevant news.
-
-### Instructions:
-
-1. Create a markdown document with the title "{title}" and today's date.
-
-2. For each company, include a section header with the company name.
-
-3. Write a single paragraph (3-5 sentences) that summarizes the most significant recent news for each company. Focus on:
-   - Financial performance metrics
-   - Leadership changes
-   - New products or services
-   - Major partnerships or transitions
-   - Regulatory or legal developments
-   - Facility changes or expansions
-   - Technology initiatives or digital transformation efforts
-
-4. Each paragraph should:
-   - Be direct and start immediately with the news
-   - Include specific facts and figures when available
-   - Avoid commentary about the frequency of media mentions
-   - Focus on items relevant to software and back office service providers
-   - Omit subjective assessments or speculations
-   - Only include news where the company plays a significant role (not just mentioned in passing)
-
-5. Use clear, concise business language appropriate for C-suite executives.
-
-6. Limit each company's summary to one paragraph regardless of the amount of news available.
-
-7. Format the final output as a clean, professional markdown document.
-
-8. IMPORTANT: For each company, discard any news articles where:
-   - The company is only mentioned tangentially or in passing
-   - The company is not a primary subject of the article
-   - The article is about industry trends with only a minor reference to the company
-   - The article primarily focuses on a different company and only mentions this company for context
-
-### Example format:
-
-```markdown
-# {title}
-[Current Date]
-
-## [Company Name]
-[Direct news summary in a single paragraph with key facts and developments relevant to software and back office service providers.]
-
-## [Company Name]
-[Direct news summary in a single paragraph with key facts and developments relevant to software and back office service providers.]
-```
-
-This summary will be used by executives to understand the current context of {focus} businesses and identify potential service opportunities or risks.
-
-### News Data:
-{news_data}
-"""
-    
-    # Format the news data as JSON string
-    news_data_str = json.dumps(batch_news, indent=2)
-    prompt = prompt_template.format(
-        focus=focus,
-        title=title,
-        news_data=news_data_str
-    )
+        prompt = COMPANY_PROMPT_TEMPLATE.format(
+            focus=focus,
+            title=title,
+            news_data=news_data_str
+        )
+    else:  # topic
+        title = "Industry Topics Executive News Summary"
+        prompt = TOPIC_PROMPT_TEMPLATE.format(
+            title=title,
+            news_data=news_data_str
+        )
     
     return prompt
 
-def call_claude_api(prompt, attempt=1, max_attempts=3):
-    """Call Claude API with retries"""
-    if not API_KEY:
-        raise ValueError("No API key found. Please set ANTHROPIC_API_KEY in your .env file.")
-    
-    print('Calling Claude API to generate executive summary...')
-    
-    try:
-        # Initialize Anthropic client
-        client = Anthropic(api_key=API_KEY)
-        
-        # Call Claude API
-        message = client.messages.create(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            temperature=0.0,
-            system='You are an expert financial analyst creating executive summaries.',
-            messages=[
-                {'role': 'user', 'content': prompt}
-            ]
-        )
-        
-        # Extract response
-        summary = message.content[0].text
-        return summary
-        
-    except Exception as e:
-        print(f'Error calling Claude API (attempt {attempt}/{max_attempts}): {e}')
-        if attempt < max_attempts:
-            # Wait before retrying (exponential backoff)
-            wait_time = 2 ** attempt
-            print(f"Waiting {wait_time} seconds before retrying...")
-            time.sleep(wait_time)
-            return call_claude_api(prompt, attempt + 1, max_attempts)
-        else:
-            print("Max attempts reached. Giving up.")
-            return None
 
 def extract_client_sections(summary):
     """Extract individual client sections from a summary"""
@@ -209,9 +180,11 @@ def extract_client_sections(summary):
     
     return sections
 
-def process_in_batches(entity_news, entities, entity_type="client", batch_size=BATCH_SIZE):
+
+def process_in_batches(entity_news, entities, entity_type="client", batch_size=SUMMARY_BATCH_SIZE):
     """Process entities in batches"""
     all_sections = {}
+    api_client = ClaudeApiClient()
     
     # Calculate number of batches
     num_batches = (len(entities) + batch_size - 1) // batch_size
@@ -228,19 +201,21 @@ def process_in_batches(entity_news, entities, entity_type="client", batch_size=B
         prompt = create_prompt_for_batch(entity_batch, entity_news, entity_type)
         
         # Save prompt to file for reference
-        prompt_file = f"data/claude_prompt_{entity_type}_batch{batch_num}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        timestamp = generate_timestamp()
+        prompt_file = f"data/claude_prompt_{entity_type}_batch{batch_num}_{timestamp}.txt"
         with open(prompt_file, 'w') as f:
             f.write(prompt)
         
         # Call Claude API for this batch
-        batch_summary = call_claude_api(prompt)
+        system_prompt = 'You are an expert financial analyst creating executive summaries for insurance and financial services industry.'
+        batch_summary = api_client.generate_summary(prompt, system_prompt)
         
         if batch_summary:
             # Extract entity sections from the summary
             batch_sections = extract_client_sections(batch_summary)
             
             # Save batch summary to file
-            batch_file = f"data/executive_summary_{entity_type}_batch{batch_num}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+            batch_file = f"data/executive_summary_{entity_type}_batch{batch_num}_{timestamp}.md"
             with open(batch_file, 'w') as f:
                 f.write(batch_summary)
             
@@ -259,89 +234,251 @@ def process_in_batches(entity_news, entities, entity_type="client", batch_size=B
     
     return all_sections
 
+
 def combine_summaries(all_sections, entities, entity_type="client"):
     """Combine all entity sections into a single summary"""
     # Create the header
     if entity_type == "client":
         title = "Client Executive News Summary"
-    else:
+    elif entity_type == "competitor":
         title = "Competitor Executive News Summary"
+    else:
+        title = "Industry Topics Executive News Summary"
         
     header = f"# {title}\n\n{datetime.now().strftime('%Y-%m-%d')}\n\n"
     
-    # Combine all entity sections in the order of the original entity list
+    # Combine all entity sections based on type
     content = []
-    for entity in entities:
-        if entity in all_sections:
-            content.append(all_sections[entity])
-        else:
-            content.append(f"## {entity}\n\nNo recent news available for this {entity_type}.\n")
+    
+    if entity_type == "topic":
+        # For topics, organize by category
+        category_sections = {}
+        current_category = None
+        
+        for entity in entities:
+            # Extract category from entity name (format: "Category: Topic Name")
+            if ":" in entity:
+                category, topic_name = entity.split(":", 1)
+                category = category.strip()
+            else:
+                category = "Other"
+                
+            # Add category header if this is a new category
+            if category != current_category:
+                if category not in category_sections:
+                    category_sections[category] = []
+                current_category = category
+            
+            # Add the entity content
+            if entity in all_sections:
+                category_sections[category].append(all_sections[entity])
+            else:
+                category_sections[category].append(f"## {entity}\n\nNo recent news available for this topic.\n")
+        
+        # Combine categories in order
+        for category in TOPIC_CATEGORIES:
+            if category in category_sections:
+                content.append(f"# {category}\n")
+                content.extend(category_sections[category])
+                # Remove the category from the dict to track which ones we've processed
+                del category_sections[category]
+        
+        # Add any remaining categories not in the predefined list
+        for category in sorted(category_sections.keys()):
+            content.append(f"# {category}\n")
+            content.extend(category_sections[category])
+    else:
+        # For clients or competitors, simple sequential order
+        for entity in entities:
+            if entity in all_sections:
+                content.append(all_sections[entity])
+            else:
+                content.append(f"## {entity}\n\nNo recent news available for this {entity_type}.\n")
     
     # Join everything together
     full_summary = header + '\n'.join(content)
     
     # Save the full summary to file
-    summary_file = f"data/executive_summary_{entity_type}_full_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+    timestamp = generate_timestamp()
+    summary_file = f"data/executive_summary_{entity_type}_full_{timestamp}.md"
     with open(summary_file, 'w') as f:
         f.write(full_summary)
     
     print(f"\nFull executive summary saved to: {summary_file}")
     return summary_file
 
-def main(csv_file, entity_type="client"):
+
+def create_combined_report(summary_files, dataframes=None):
+    """
+    Create a comprehensive combined report with clients, competitors, and topics
+    
+    Args:
+        summary_files (dict): Dictionary of summary files by entity type
+        dataframes (dict): Dictionary of raw dataframes by entity type for fallback
+    """
+    print("\nCreating comprehensive combined report...")
+    
+    # Create the combined markdown report
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    combined_title = COMBINED_REPORT_HEADER.format(current_date=current_date)
+    
+    sections = []
+    
+    # First add industry topics section if available
+    if "topic" in summary_files:
+        try:
+            with open(summary_files["topic"], 'r') as f:
+                topic_content = f.read()
+                # Remove the header (first few lines) from the topic content
+                topic_content = re.sub(r'^.*?\n\n', '', topic_content, flags=re.DOTALL)
+                sections.append("## Industry Topics\n\n" + topic_content)
+        except (FileNotFoundError, PermissionError) as e:
+            print(f"Warning: Could not read topic summary file: {e}")
+            sections.append("## Industry Topics\n\nTopic data not available.")
+    
+    # Then add client summaries if available
+    if "client" in summary_files:
+        try:
+            with open(summary_files["client"], 'r') as f:
+                client_content = f.read()
+                # Remove the header (first few lines) from the client content
+                client_content = re.sub(r'^.*?\n\n', '', client_content, flags=re.DOTALL)
+                sections.append("## Client Companies\n\n" + client_content)
+        except (FileNotFoundError, PermissionError) as e:
+            print(f"Warning: Could not read client summary file: {e}")
+            sections.append("## Client Companies\n\nClient data not available.")
+    
+    # Finally add competitor summaries if available
+    if "competitor" in summary_files:
+        try:
+            with open(summary_files["competitor"], 'r') as f:
+                competitor_content = f.read()
+                # Remove the header (first few lines) from the competitor content
+                competitor_content = re.sub(r'^.*?\n\n', '', competitor_content, flags=re.DOTALL)
+                sections.append("## Competitor Companies\n\n" + competitor_content)
+        except (FileNotFoundError, PermissionError) as e:
+            print(f"Warning: Could not read competitor summary file: {e}")
+            sections.append("## Competitor Companies\n\nCompetitor data not available.")
+    
+    # Combine all sections
+    combined_content = combined_title + "\n\n".join(sections)
+    
+    # Save to file
+    timestamp = generate_timestamp()
+    combined_file = f"data/executive_summary_combined_{timestamp}.md"
+    with open(combined_file, 'w') as f:
+        f.write(combined_content)
+    
+    print(f"Combined executive summary saved to: {combined_file}")
+    return combined_file
+
+
+def main(csv_files=None, entity_types=None, combined=False):
     """
     Main function to run the batch processing pipeline
     
     Args:
-        csv_file (str): Path to the CSV file with news data
-        entity_type (str): Type of entities to process - "client" or "competitor"
+        csv_files (dict): Dictionary mapping entity types to CSV files
+        entity_types (list): List of entity types to process
+        combined (bool): Whether to create a combined report
     """
-    print(f"Starting batch executive summary generation for {entity_type}s from: {csv_file}")
+    if entity_types is None:
+        entity_types = ["client"]  # Default to client only
+        
+    if csv_files is None:
+        csv_files = {}
     
-    try:
-        # Load entity news data
-        entity_news, entities = load_entity_news(csv_file, entity_type)
+    # Process each entity type
+    summary_files = {}
+    
+    for entity_type in entity_types:
+        # Get CSV file for this entity type
+        csv_file = csv_files.get(entity_type)
         
-        # Process in batches
-        all_sections = process_in_batches(entity_news, entities, entity_type)
+        if not csv_file:
+            # Try to get latest CSV file for the specified entity type
+            try:
+                with open(f"data/latest_{entity_type}_csv.txt", "r") as f:
+                    csv_file = f.read().strip()
+            except FileNotFoundError:
+                # Fall back to the general latest_csv.txt
+                try:
+                    with open("data/latest_csv.txt", "r") as f:
+                        csv_file = f.read().strip()
+                except FileNotFoundError:
+                    csv_file = input(f"Enter path to CSV file with {entity_type} news data: ")
         
-        # Combine all summaries
-        summary_file = combine_summaries(all_sections, entities, entity_type)
+        if not os.path.exists(csv_file):
+            print(f"CSV file not found for {entity_type}: {csv_file}")
+            continue
+            
+        print(f"\nStarting batch executive summary generation for {entity_type} from: {csv_file}")
         
-        print(f"\nBatch processing for {entity_type}s completed successfully!")
-        return summary_file
-        
-    except Exception as e:
-        print(f"Error in batch processing: {e}")
-        return None
+        try:
+            # Load entity news data
+            entity_news, entities = load_entity_news(csv_file, entity_type)
+            
+            # Process in batches
+            all_sections = process_in_batches(entity_news, entities, entity_type)
+            
+            # Combine all summaries for this entity type
+            summary_file = combine_summaries(all_sections, entities, entity_type)
+            summary_files[entity_type] = summary_file
+            
+            print(f"Batch processing for {entity_type} completed successfully!")
+            
+        except Exception as e:
+            print(f"Error in batch processing for {entity_type}: {e}")
+    
+    # Create combined report if requested and we have at least one summary
+    if combined and summary_files:
+        combined_file = create_combined_report(summary_files)
+        return combined_file
+    elif len(summary_files) == 1:
+        # If only one type was processed, return that summary file
+        return list(summary_files.values())[0]
+    else:
+        # Otherwise return all summary files
+        return summary_files
+
 
 if __name__ == "__main__":
     import argparse
     
     # Set up command line argument parsing
     parser = argparse.ArgumentParser(description="Generate executive summaries from news data")
-    parser.add_argument("--type", choices=["client", "competitor"], 
+    parser.add_argument("--type", choices=["client", "competitor", "topic", "all"], 
                         default="client", help="Type of entities to process")
     parser.add_argument("--csv", help="Path to CSV file with news data")
+    parser.add_argument("--client-csv", help="Path to CSV file with client news data")
+    parser.add_argument("--competitor-csv", help="Path to CSV file with competitor news data")
+    parser.add_argument("--topic-csv", help="Path to CSV file with topic news data")
+    parser.add_argument("--combined", action="store_true", help="Create a combined report")
     
     args = parser.parse_args()
     
-    # Determine CSV file path
-    csv_file = args.csv
-    if not csv_file:
-        # Try to get latest CSV file for the specified entity type
-        try:
-            with open(f"data/latest_{args.type}_csv.txt", "r") as f:
-                csv_file = f.read().strip()
-        except FileNotFoundError:
-            # Fall back to the general latest_csv.txt
-            try:
-                with open("data/latest_csv.txt", "r") as f:
-                    csv_file = f.read().strip()
-            except FileNotFoundError:
-                csv_file = input(f"Enter path to CSV file with {args.type} news data: ")
-    
-    if os.path.exists(csv_file):
-        main(csv_file, args.type)
+    # Determine entity types to process
+    if args.type == "all":
+        entity_types = ["client", "competitor", "topic"]
     else:
-        print(f"CSV file not found: {csv_file}")
+        entity_types = [args.type]
+    
+    # Determine CSV files for each entity type
+    csv_files = {}
+    
+    # Map specific CSV args to entity types
+    if args.client_csv:
+        csv_files["client"] = args.client_csv
+    
+    if args.competitor_csv:
+        csv_files["competitor"] = args.competitor_csv
+    
+    if args.topic_csv:
+        csv_files["topic"] = args.topic_csv
+    
+    # Handle the generic --csv argument
+    if args.csv and args.type != "all":
+        csv_files[args.type] = args.csv
+    
+    # Run main function with parsed arguments
+    main(csv_files, entity_types, args.combined)

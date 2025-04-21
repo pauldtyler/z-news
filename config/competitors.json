@@ -1,0 +1,134 @@
+[
+  {
+    "name": "Accenture",
+    "query": "\"Accenture\" AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "Annuities Genius",
+    "query": "\"Annuities Genius\" AND (Insurance OR Financial)"
+  },
+  {
+    "name": "BackNine",
+    "query": "\"BackNine\" AND (Insurance OR \"Life Insurance\" OR Annuities)"
+  },
+  {
+    "name": "Benekiva",
+    "query": "\"Benekiva\" AND (Insurance OR Claims OR \"Policy Administration\")"
+  },
+  {
+    "name": "Covr",
+    "query": "\"Covr\" AND (Insurance OR \"Life Insurance\")"
+  },
+  {
+    "name": "DXC Technology",
+    "query": "\"DXC Technology\" AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "EIS Group",
+    "query": "\"EIS Group\" AND (Insurance OR Policy OR Platform)"
+  },
+  {
+    "name": "Ensight",
+    "query": "\"Ensight\" AND (Insurance OR Annuities OR Sales)"
+  },
+  {
+    "name": "Equisoft",
+    "query": "\"Equisoft\" AND (Insurance OR Annuities OR \"Life Insurance\")"
+  },
+  {
+    "name": "Ethos",
+    "query": "\"Ethos\" AND (Insurance OR \"Life Insurance\")"
+  },
+  {
+    "name": "EXL",
+    "query": "\"EXL Service\" AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "FAST Insurance Platform",
+    "query": "\"FAST Insurance Platform\" OR (\"FAST\" AND \"Insurance Platform\")"
+  },
+  {
+    "name": "FIDx",
+    "query": "\"FIDx\" OR \"Fiduciary Exchange\" AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "Hexure",
+    "query": "\"Hexure\" AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "iCapital",
+    "query": "\"iCapital\" AND (Financial OR Investment)"
+  },
+  {
+    "name": "Infosys",
+    "query": "\"Infosys\" AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "iPipeline",
+    "query": "\"iPipeline\" AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "LIDP",
+    "query": "\"LIDP Consulting\" OR \"LIDP\" AND (Insurance OR \"Policy Administration\")"
+  },
+  {
+    "name": "Luma Financial Technologies",
+    "query": "\"Luma Financial\" AND (Annuities OR Technology)"
+  },
+  {
+    "name": "Majesco",
+    "query": "\"Majesco\" AND (Insurance OR \"Policy Administration\")"
+  },
+  {
+    "name": "Matic Insurance",
+    "query": "\"Matic Insurance\""
+  },
+  {
+    "name": "McCamish",
+    "query": "\"McCamish\" OR \"TCS McCamish\" AND (Insurance OR Platform)"
+  },
+  {
+    "name": "NTT Data",
+    "query": "\"NTT Data\" AND (Insurance OR Financial)"
+  },
+  {
+    "name": "Porch Group",
+    "query": "\"Porch Group\" AND Insurance"
+  },
+  {
+    "name": "Sapiens",
+    "query": "\"Sapiens\" AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "SelectQuote",
+    "query": "\"SelectQuote\" AND Insurance"
+  },
+  {
+    "name": "Socotra",
+    "query": "\"Socotra\" AND Insurance"
+  },
+  {
+    "name": "Spark IPS",
+    "query": "\"Spark IPS\" AND Insurance"
+  },
+  {
+    "name": "Sureify",
+    "query": "\"Sureify\" AND (Insurance OR \"Annuities\")"
+  },
+  {
+    "name": "The Zebra",
+    "query": "\"The Zebra\" AND Insurance"
+  },
+  {
+    "name": "Unqork",
+    "query": "\"Unqork\" AND (Insurance OR Financial OR No-code)"
+  },
+  {
+    "name": "Verisk",
+    "query": "\"Verisk\" AND Insurance"
+  },
+  {
+    "name": "WNS Global Services",
+    "query": "\"WNS Global Services\" AND (Insurance OR Financial)"
+  }
+]

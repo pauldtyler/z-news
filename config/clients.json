@@ -1,0 +1,302 @@
+[
+  {
+    "name": "ACAP / Atlantic Coast Life",
+    "query": "(\"ACAP\" AND \"insurance\") OR \"Atlantic Coast Life Insurance\" OR (\"ACAP\" AND \"Atlantic Coast\")"
+  },
+  {
+    "name": "Advisors Excel, LLC",
+    "query": "\"Advisors Excel\""
+  },
+  {
+    "name": "American National Life Insurance",
+    "query": "\"American National Life Insurance\" OR \"American National Insurance\""
+  },
+  {
+    "name": "Amerilife",
+    "query": "\"Amerilife\" AND insurance"
+  },
+  {
+    "name": "Ameriprise Financial, Inc.",
+    "query": "\"Ameriprise Financial\""
+  },
+  {
+    "name": "Ameritas",
+    "query": "\"Ameritas\" AND (insurance OR financial)"
+  },
+  {
+    "name": "Arcus Holdings",
+    "query": "\"Arcus Holdings\" financial"
+  },
+  {
+    "name": "Aspida Life Insurance",
+    "query": "\"Aspida Life Insurance\""
+  },
+  {
+    "name": "Assurity Life Company",
+    "query": "\"Assurity Life\" OR \"Assurity Life Insurance\""
+  },
+  {
+    "name": "Athene",
+    "query": "\"Athene\" AND (insurance OR annuities)"
+  },
+  {
+    "name": "Atlanta Life",
+    "query": "\"Atlanta Life Insurance\""
+  },
+  {
+    "name": "Beneva",
+    "query": "\"Beneva\" AND insurance"
+  },
+  {
+    "name": "BNY Mellon | Pershing",
+    "query": "\"BNY Mellon\" OR \"Bank of New York Mellon\" OR Pershing"
+  },
+  {
+    "name": "Brighthouse Financial",
+    "query": "\"Brighthouse Financial\""
+  },
+  {
+    "name": "Cincinnati Life Insurance Company",
+    "query": "\"Cincinnati Life Insurance\""
+  },
+  {
+    "name": "Corebridge Financial, Inc",
+    "query": "\"Corebridge Financial\""
+  },
+  {
+    "name": "Delaware Insurance",
+    "query": "\"Delaware Life Insurance\""
+  },
+  {
+    "name": "Desjardins",
+    "query": "\"Desjardins\" AND insurance"
+  },
+  {
+    "name": "Edward Jones",
+    "query": "\"Edward Jones\" financial"
+  },
+  {
+    "name": "Empower",
+    "query": "\"Empower\" AND (retirement OR financial)"
+  },
+  {
+    "name": "Equitable",
+    "query": "\"Equitable\" AND (insurance OR financial)"
+  },
+  {
+    "name": "Everly",
+    "query": "\"Everly\" AND insurance"
+  },
+  {
+    "name": "Farmers Insurance Group",
+    "query": "\"Farmers Insurance\""
+  },
+  {
+    "name": "Farmers New World Life",
+    "query": "\"Farmers New World Life\""
+  },
+  {
+    "name": "Fidelity Investments",
+    "query": "\"Fidelity Investments\""
+  },
+  {
+    "name": "FMR LLC",
+    "query": "\"FMR LLC\" OR \"Fidelity Management & Research\""
+  },
+  {
+    "name": "FNZ Group",
+    "query": "\"FNZ Group\" financial"
+  },
+  {
+    "name": "Global Atlantic Financial Group",
+    "query": "\"Global Atlantic Financial\""
+  },
+  {
+    "name": "Integrity Marketing Group",
+    "query": "\"Integrity Marketing Group\""
+  },
+  {
+    "name": "J.P. Morgan Chase & Co.",
+    "query": "\"J.P. Morgan Chase\" OR \"JPMorgan Chase\" OR \"JP Morgan\""
+  },
+  {
+    "name": "JAB Holding",
+    "query": "\"JAB Holding\" AND financial"
+  },
+  {
+    "name": "John Hancock Financial",
+    "query": "\"John Hancock Financial\" OR \"John Hancock Insurance\""
+  },
+  {
+    "name": "Kuvare Holdings, Inc.",
+    "query": "\"Kuvare Holdings\""
+  },
+  {
+    "name": "Legal & General America",
+    "query": "(\"Legal & General America\" AND Insurance) OR (\"Legal and General America\" AND Insurance)"
+  },
+  {
+    "name": "Lincoln National Financial Group",
+    "query": "\"Lincoln National\" OR \"Lincoln Financial Group\""
+  },
+  {
+    "name": "LPL Financial Holdings Inc.",
+    "query": "\"LPL Financial\""
+  },
+  {
+    "name": "MassMutual",
+    "query": "\"Massachusetts Mutual Life\" OR \"Massachusetts Mutual Life Insurance Company\" OR \"massmutual\""
+  },
+  {
+    "name": "Merrill Lynch Wealth Management",
+    "query": "\"Merrill Lynch\" wealth management"
+  },
+  {
+    "name": "Modern Woodmen",
+    "query": "\"Modern Woodmen\" AND insurance"
+  },
+  {
+    "name": "Morgan Stanley",
+    "query": "\"Morgan Stanley\" finance"
+  },
+  {
+    "name": "Mutual of Omaha",
+    "query": "\"Mutual of Omaha\""
+  },
+  {
+    "name": "Nassau Financial Group",
+    "query": "(\"Nassau\" AND Annuities) OR \"Nassau Financial\""
+  },
+  {
+    "name": "National Life Group",
+    "query": "\"National Life Group\""
+  },
+  {
+    "name": "National Western",
+    "query": "\"National Western\" (annuity OR insurance)"
+  },
+  {
+    "name": "National Western Life Insurance Company",
+    "query": "\"National Western Life Insurance\""
+  },
+  {
+    "name": "Nationwide Mutual Insurance Company",
+    "query": "\"Nationwide Mutual Insurance\" OR \"Nationwide Insurance\""
+  },
+  {
+    "name": "New York Life",
+    "query": "\"New York Life\" AND insurance"
+  },
+  {
+    "name": "One America",
+    "query": "\"OneAmerica\" OR \"One America\" (annuity OR insurance)"
+  },
+  {
+    "name": "Pacific Life",
+    "query": "\"Pacific Life\" AND insurance"
+  },
+  {
+    "name": "Policygenius",
+    "query": "\"Policygenius\""
+  },
+  {
+    "name": "Protective Life",
+    "query": "\"Protective Life\" AND insurance"
+  },
+  {
+    "name": "Prosperity",
+    "query": "\"Prosperity Life Group\" OR \"Prosperity\" AND insurance"
+  },
+  {
+    "name": "Prosperity Life",
+    "query": "\"Prosperity Life Group\""
+  },
+  {
+    "name": "Prudential Financial, Inc.",
+    "query": "\"Prudential Financial\" AND (insurance OR Annuities)"
+  },
+  {
+    "name": "Royal Neighbors of America",
+    "query": "\"Royal Neighbors of America\""
+  },
+  {
+    "name": "Sammons",
+    "query": "\"Sammons Financial Group\" OR \"Sammons\" AND insurance"
+  },
+  {
+    "name": "Securian",
+    "query": "\"Securian Financial\" OR \"Securian\""
+  },
+  {
+    "name": "Security Benefit Life Insurance Company",
+    "query": "\"Security Benefit Life Insurance\" OR (\"Security Benefit\" AND Annuities)"
+  },
+  {
+    "name": "Security Mutual Life",
+    "query": "\"Security Mutual Life\""
+  },
+  {
+    "name": "Serenia Life Financial",
+    "query": "\"Serenia Life Financial\""
+  },
+  {
+    "name": "Simplicity Group",
+    "query": "\"Simplicity Group\" AND insurance"
+  },
+  {
+    "name": "Stellar Life",
+    "query": "\"Stellar Life\""
+  },
+  {
+    "name": "Stone Peak Advisor",
+    "query": "\"Stone Peak Advisor\""
+  },
+  {
+    "name": "Sun Life Financial",
+    "query": "\"Sun Life Financial\""
+  },
+  {
+    "name": "Symetra",
+    "query": "\"Symetra\" AND insurance"
+  },
+  {
+    "name": "The Guardian Life Insurance Company of America",
+    "query": "\"Guardian Life Insurance\""
+  },
+  {
+    "name": "Transamerica",
+    "query": "\"Transamerica\" AND (annuity OR insurance)"
+  },
+  {
+    "name": "Trustage",
+    "query": "\"Trustage\" AND (annuity OR insurance)"
+  },
+  {
+    "name": "USAA",
+    "query": "USAA insurance"
+  },
+  {
+    "name": "UV Cloud",
+    "query": "\"UV Cloud\" AND insurance"
+  },
+  {
+    "name": "Venerable",
+    "query": "\"Venerable\" AND (annuity OR insurance)"
+  },
+  {
+    "name": "Wellabe, Inc.",
+    "query": "\"Wellabe\" insurance"
+  },
+  {
+    "name": "Wells Fargo & Company",
+    "query": "\"Wells Fargo\" financial"
+  },
+  {
+    "name": "Zinnia",
+    "query": "\"Zinnia\" AND insurance"
+  },
+  {
+    "name": "Zurich",
+    "query": "\"Zurich\" AND insurance"
+  }
+]

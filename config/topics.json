@@ -1,0 +1,87 @@
+[
+  {
+    "category": "Annuity Market",
+    "name": "Annuity Industry Trends",
+    "query": "\"annuity industry\" AND (trends OR \"market update\" OR growth OR forecast OR outlook)"
+  },
+  {
+    "category": "Annuity Market",
+    "name": "Annuity Market Updates",
+    "query": "\"annuity market\" AND (update OR growth OR performance OR sales OR statistics)"
+  },
+  {
+    "category": "Annuity Market",
+    "name": "New Annuity Products",
+    "query": "\"new annuity products\" OR (\"annuity\" AND \"product launch\" AND (innovation OR features))"
+  },
+  {
+    "category": "Life Insurance Market",
+    "name": "Life Insurance Trends",
+    "query": "\"life insurance industry\" AND (trends OR forecast OR growth OR outlook)"
+  },
+  {
+    "category": "Life Insurance Market",
+    "name": "Life Insurance Market",
+    "query": "\"life insurance market\" AND (update OR growth OR performance OR sales OR statistics)"
+  },
+  {
+    "category": "Life Insurance Market",
+    "name": "New Insurance Products",
+    "query": "\"new insurance products\" OR (\"life insurance\" AND \"product launch\" AND (innovation OR features))"
+  },
+  {
+    "category": "Technology",
+    "name": "Insurance Technology",
+    "query": "(\"life insurance\" OR annuity) AND (technology OR software OR platform OR digital)"
+  },
+  {
+    "category": "Technology",
+    "name": "Digital Transformation",
+    "query": "\"digital transformation\" AND (insurance OR annuity OR \"life insurance\")"
+  },
+  {
+    "category": "Technology",
+    "name": "Insurtech Innovations",
+    "query": "insurtech AND (innovation OR startup OR emerging OR technology OR partnership)"
+  },
+  {
+    "category": "Policy Administration",
+    "name": "Policy Administration Systems",
+    "query": "\"policy administration system\" AND (insurance OR annuity OR \"life insurance\")"
+  },
+  {
+    "category": "Policy Administration",
+    "name": "Annuity Administration",
+    "query": "\"annuity policy administration\" OR (\"annuity\" AND \"policy administration\")"
+  },
+  {
+    "category": "Policy Administration",
+    "name": "Life Insurance Administration",
+    "query": "\"life insurance policy administration\" OR (\"life insurance\" AND \"policy administration\")"
+  },
+  {
+    "category": "Industry Events",
+    "name": "Insurance Conferences",
+    "query": "(\"life insurance\" OR annuity) AND (conference OR event OR summit OR forum)"
+  },
+  {
+    "category": "Business Developments",
+    "name": "Insurance M&A",
+    "query": "(\"insurance industry\" OR \"life insurance\" OR annuity) AND (\"mergers and acquisitions\" OR M&A OR consolidation OR buyout)"
+  },
+  {
+    "category": "Business Developments",
+    "name": "Insurance Partnerships",
+    "query": "(\"insurance\" OR \"life insurance\" OR annuity) AND (partnership OR collaboration OR alliance OR \"joint venture\")"
+  },
+  {
+    "category": "Outsourcing",
+    "name": "Life Insurance Outsourcing",
+    "query": "\"life insurance outsourcing\" OR (\"life insurance\" AND outsourcing AND (services OR operations))"
+  },
+  {
+    "category": "Regulatory",
+    "name": "Insurance Regulations",
+    "query": "(\"insurance regulations\" OR \"regulatory changes\") AND (\"life insurance\" OR annuity)"
+  }
+]

@@ -53,22 +53,31 @@ def cleanup_files(file_pattern, keep_latest=1):
     
     return deleted
 
-def main():
-    """Main function to clean up project files."""
+def main(keep_latest=1):
+    """
+    Main function to clean up project files.
+    
+    Args:
+        keep_latest: Number of latest files to keep for each type (default: 1)
+    """
     print("Starting cleanup process...")
     
     # List of patterns to match files that should be cleaned up
     patterns = [
         "client_news_*.csv",
+        "competitor_news_*.csv",
+        "topic_news_*.csv",
+        "weekly_news_*.csv",
         "data/client_news_*.csv",
         "data/competitor_news_*.csv",
+        "data/topic_news_*.csv",
         "data/weekly_news_*.csv",
-        "data/executive_summary_*.md",
-        "data/claude_prompt_*.txt"
+        "data/executive_summary_*_batch*_*.md",
+        "data/executive_summary_*_full_*.md",
+        "data/executive_summary_combined_*.md",
+        "data/claude_prompt_*_batch*_*.txt",
+        "data/latest_*_csv.txt"
     ]
-    
-    # Keep the latest N files for each type
-    keep_latest = 2
     
     total_deleted = []
     for pattern in patterns:
