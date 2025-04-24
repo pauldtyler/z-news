@@ -1,22 +1,23 @@
-# Z-News: Weekly Financial Services News Collection and Analysis
+# Z-News: Financial Services News Collection and Analysis
 
-A comprehensive system for collecting, processing, and summarizing weekly news about financial services clients, competitors, and industry topics.
+A comprehensive system for collecting, processing, and summarizing news about financial services clients, competitors, and industry topics.
 
 ## Overview
 
-Z-News automates the weekly collection of recent news articles for financial services clients, competitors, and industry topics, then generates executive summaries using Claude AI. The system is designed to help executives stay informed about their clients', competitors', and industry trends with a regular weekly cadence.
+Z-News automates the collection of recent news articles for financial services clients, competitors, and industry topics, then generates executive summaries using Claude AI. The system is designed to help executives stay informed about their clients', competitors', and industry trends with flexible daily or weekly cadence options.
 
 ## Features
 
-- Automated weekly news collection from DuckDuckGo
+- Automated news collection from DuckDuckGo (daily or weekly options)
 - Rate limiting and error handling to prevent API blocks
 - Batched processing of multiple entities
 - Adaptive result counts based on company profile
 - Flexible configuration through external JSON files
 - Modular architecture with separation of concerns
-- Combined weekly report option with categorized sections
+- Combined report option with categorized sections
 - Executive summary generation using Claude API
 - Support for clients, competitors, and industry topics
+- Daily news collection with automatic cleanup of intermediate files
 
 ## Project Structure
 
@@ -42,13 +43,15 @@ z-news/
 
 ## Components
 
-### 1. Weekly News Collection
+### 1. News Collection
 
-The `collect_all_news.py` script searches for and collects the most recent week's news articles for specified clients, competitors, and industry topics.
+The `collect_all_news.py` script searches for and collects news articles for specified clients, competitors, and industry topics. It offers both weekly and daily collection options.
 
 #### Usage
 
 ```bash
+# Weekly News Collection (Default Mode)
+
 # Collect weekly news for clients only (default)
 python collect_all_news.py --target clients
 
@@ -66,13 +69,25 @@ python collect_all_news.py --target all
 
 # Disable adaptive result counts
 python collect_all_news.py --target clients --no-adaptive
+
+# Daily News Collection with Single Summary
+
+# Collect just the prior day's news for clients and competitors
+# and generate a single consolidated summary (cleans up intermediate files)
+python collect_all_news.py --daily
 ```
 
+#### Weekly Collection
 The script collects news from the past week and adjusts the number of results based on company profile:
 - High-profile companies (more active): 5 articles per company
 - Medium-profile companies (standard): 3 articles per company
 - Low-profile companies (less active): 4 articles per company for increased coverage
 - Industry topics: 5 articles per topic
+
+#### Daily Collection (with `--daily` flag)
+- Collects only the prior day's news for clients and competitors (no industry topics)
+- Generates a single consolidated markdown summary using Claude API
+- Automatic cleanup of intermediate files, keeping only the consolidated CSV and markdown summary
 
 ### 2. Executive Summary Generation
 
@@ -122,7 +137,9 @@ python batch_executive_summary.py --type all --client-csv /path/to/client.csv --
    - Consolidated summary: `data/executive_summary_[type]_full_[timestamp].md`
    - Combined report (with `--combined`): `data/executive_summary_combined_[timestamp].md`
 
-## Recommended Weekly Workflow
+## Recommended Workflows
+
+### Weekly Workflow
 
 For a complete weekly news summary:
 
@@ -137,6 +154,21 @@ For a complete weekly news summary:
    ```
 
 3. View the generated markdown files in the `data` directory or convert them to other formats as needed.
+
+### Daily Workflow
+
+For a quick daily news update:
+
+1. Collect the prior day's news for clients and competitors and generate a summary:
+   ```bash
+   python collect_all_news.py --daily
+   ```
+
+2. The script will:
+   - Collect news from the past day
+   - Generate a consolidated summary with Claude
+   - Clean up intermediate files automatically
+   - Keep only the final combined CSV and markdown summary
 
 ## Customization
 
@@ -221,7 +253,7 @@ Company Name,Article Title,https://example.com,2025-04-19,Source Name,Article ex
 Company has reported Q1 earnings of $1.2B, exceeding analyst expectations by 3%. CEO Jane Smith announced a new digital transformation initiative focusing on AI-powered customer service solutions set to launch in Q3. The firm also completed its acquisition of TechCorp for $500M, expanding its software capabilities.
 ```
 
-### Combined Report Format
+### Combined Weekly Report Format
 
 ```markdown
 # Financial Services Industry Executive Summary
@@ -254,6 +286,29 @@ This report provides a comprehensive weekly summary of key developments across t
 
 ## Competitor X
 [Summary paragraph about Competitor X]
+```
+
+### Daily Summary Format
+
+```markdown
+# Daily Financial Services News Summary
+2025-04-19
+
+## Client Companies
+
+### Company A
+Company A has announced a new strategic partnership with Technology Provider Z to enhance their digital payment infrastructure. The partnership will focus on implementing blockchain-based solutions for faster transaction processing and improved security protocols. This move comes as part of Company A's $50M digital transformation initiative announced earlier this quarter.
+
+### Company B
+[Daily news summary for Company B]
+
+## Competitor Companies
+
+### Competitor X
+[Daily news summary for Competitor X]
+
+### Competitor Y
+[Daily news summary for Competitor Y]
 ```
 
 ## Requirements

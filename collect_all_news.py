@@ -346,7 +346,7 @@ def main(target_type="clients", use_adaptive=True):
     Main function to run the weekly news collection pipeline
     
     Args:
-        target_type (str): Type of entities to collect news for - "clients", "competitors", "topics", or "all"
+        target_type (str): Type of entities to collect news for - "clients", "competitors", "topics", "all"
         use_adaptive (bool): Whether to use adaptive search parameters
     """
     print(f"Starting weekly news collection for {target_type}...")
@@ -445,6 +445,315 @@ def main(target_type="clients", use_adaptive=True):
         return None
 
 
+def cleanup_intermediate_files(files_to_keep):
+    """
+    Clean up intermediate files, keeping only the specified files.
+    
+    Args:
+        files_to_keep (list): List of file paths to keep
+    """
+    import os
+    import glob
+    
+    print("\n" + "="*50)
+    print("CLEANING UP INTERMEDIATE FILES")
+    print("="*50)
+    
+    # Get all files in the data directory
+    all_files = glob.glob("data/*")
+    
+    # Make sure files_to_keep contains absolute paths
+    files_to_keep = [os.path.abspath(f) for f in files_to_keep]
+    
+    # Files to delete are those not in files_to_keep
+    files_to_delete = []
+    for file_path in all_files:
+        abs_path = os.path.abspath(file_path)
+        if abs_path not in files_to_keep and "_latest_" not in file_path:
+            # Keep the latest_*.txt reference files
+            if not (file_path.endswith('.txt') and 'latest' in file_path):
+                files_to_delete.append(file_path)
+    
+    # Delete the files
+    for file_path in files_to_delete:
+        try:
+            os.remove(file_path)
+            print(f"Deleted: {file_path}")
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+    
+    print(f"Cleanup complete. Deleted {len(files_to_delete)} intermediate files.")
+    print(f"Kept {len(files_to_keep)} files.")
+
+
+def collect_daily_news_with_summary():
+    """
+    Collect the prior day's news for clients and competitors, then generate a single 
+    markdown summary using Claude API.
+    
+    This specialized function:
+    1. Uses the 'd' (day) time period instead of weekly
+    2. Only searches for clients and competitors (not industry topics)
+    3. Generates a single combined summary directly
+    4. Cleans up intermediate files, keeping only the combined CSV and markdown summary
+    
+    Returns:
+        str: Path to the generated markdown summary file
+    """
+    print("Starting daily news collection and summary process...")
+    
+    try:
+        timestamp = generate_timestamp()
+        
+        # Override the weekly time period with daily
+        daily_time_period = 'd'
+        
+        # Load entity data from configuration files
+        clients_data = load_entities("client")
+        competitors_data = load_entities("competitor")
+        
+        # Convert to tuple format for backward compatibility
+        clients = convert_entities_to_tuples(clients_data, "client")
+        competitors = convert_entities_to_tuples(competitors_data, "competitor")
+        
+        all_news = {}
+        dataframes = {}
+        
+        # Collect daily news for clients
+        print("\n" + "="*50)
+        print("COLLECTING DAILY CLIENT NEWS")
+        print("="*50)
+        
+        # Create search service
+        search_service = SearchService()
+        
+        # Process clients
+        for entity_tuple in clients:
+            entity_name = get_entity_name(entity_tuple)
+            search_query = get_entity_query(entity_tuple)
+            
+            # Determine result count based on profile
+            if any(high in entity_name for high in HIGH_PROFILE_ENTITIES):
+                max_results = HIGH_PROFILE_RESULT_COUNT
+            elif any(low in entity_name for low in LOW_PROFILE_ENTITIES):
+                max_results = LOW_PROFILE_RESULT_COUNT
+            else:
+                max_results = DEFAULT_RESULT_COUNT
+                
+            print(f"Searching daily news for {entity_name}...")
+            print(f"  → Query: {search_query}")
+            print(f"  → Time period: {TIME_DESCRIPTIONS.get(daily_time_period)}, Max results: {max_results}")
+            
+            # Search for news using daily time period
+            results = search_service.search_news(search_query, max_results=max_results, time_filter=daily_time_period)
+            
+            # Store results
+            all_news[entity_name] = results
+            
+            # Show how many results were found
+            num_results = len(results)
+            if num_results == 0:
+                print(f"  → No results found for {entity_name}")
+            else:
+                print(f"  → Found {num_results} articles")
+            
+            # Add delay with jitter to avoid rate limits
+            if entity_tuple != clients[-1]:
+                delay = add_jitter(DELAY_BETWEEN_REQUESTS, 0.2)
+                # Adjust delay based on entity profile
+                if any(high in entity_name for high in HIGH_PROFILE_ENTITIES):
+                    delay *= 1.5
+                print(f"  → Waiting {delay:.1f} seconds before next request...")
+                time.sleep(delay)
+        
+        # Convert client news to DataFrame
+        client_news_df = convert_to_dataframe(all_news)
+        dataframes["client"] = client_news_df
+        
+        # Save client news to CSV
+        client_csv = save_to_csv(client_news_df, timestamp, entity_type="client_daily")
+        
+        # Reset all_news dictionary for competitors
+        all_news = {}
+        
+        # Collect daily news for competitors
+        print("\n" + "="*50)
+        print("COLLECTING DAILY COMPETITOR NEWS")
+        print("="*50)
+        
+        # Process competitors
+        for entity_tuple in competitors:
+            entity_name = get_entity_name(entity_tuple)
+            search_query = get_entity_query(entity_tuple)
+            
+            # Determine result count based on profile
+            if any(high in entity_name for high in HIGH_PROFILE_ENTITIES):
+                max_results = HIGH_PROFILE_RESULT_COUNT
+            elif any(low in entity_name for low in LOW_PROFILE_ENTITIES):
+                max_results = LOW_PROFILE_RESULT_COUNT
+            else:
+                max_results = DEFAULT_RESULT_COUNT
+                
+            print(f"Searching daily news for {entity_name}...")
+            print(f"  → Query: {search_query}")
+            print(f"  → Time period: {TIME_DESCRIPTIONS.get(daily_time_period)}, Max results: {max_results}")
+            
+            # Search for news using daily time period
+            results = search_service.search_news(search_query, max_results=max_results, time_filter=daily_time_period)
+            
+            # Store results
+            all_news[entity_name] = results
+            
+            # Show how many results were found
+            num_results = len(results)
+            if num_results == 0:
+                print(f"  → No results found for {entity_name}")
+            else:
+                print(f"  → Found {num_results} articles")
+            
+            # Add delay with jitter to avoid rate limits
+            if entity_tuple != competitors[-1]:
+                delay = add_jitter(DELAY_BETWEEN_REQUESTS, 0.2)
+                # Adjust delay based on entity profile
+                if any(high in entity_name for high in HIGH_PROFILE_ENTITIES):
+                    delay *= 1.5
+                print(f"  → Waiting {delay:.1f} seconds before next request...")
+                time.sleep(delay)
+        
+        # Convert competitor news to DataFrame
+        competitor_news_df = convert_to_dataframe(all_news)
+        dataframes["competitor"] = competitor_news_df
+        
+        # Save competitor news to CSV
+        competitor_csv = save_to_csv(competitor_news_df, timestamp, entity_type="competitor_daily")
+        
+        # Combine dataframes
+        if not client_news_df.empty or not competitor_news_df.empty:
+            dfs_to_combine = [df for df in dataframes.values() if not df.empty]
+            combined_df = pd.concat(dfs_to_combine) if dfs_to_combine else pd.DataFrame()
+            
+            # Save combined data
+            combined_csv = save_to_csv(combined_df, timestamp, entity_type="daily_combined")
+            
+            print("\n" + "="*50)
+            print("GENERATING DAILY NEWS SUMMARY")
+            print("="*50)
+            
+            # Generate executive summary using Claude API
+            from services import ClaudeApiClient
+            from datetime import datetime
+            
+            # Load client and competitor lists
+            from config.config import load_entities
+            clients_data = load_entities("client")
+            competitors_data = load_entities("competitor")
+            
+            # Extract names
+            client_names = set(c.get('name', '') for c in clients_data)
+            competitor_names = set(c.get('name', '') for c in competitors_data)
+            
+            # Create data for the prompt with proper structure
+            data_for_claude = {"clients": {}, "competitors": {}}
+            
+            for entity, df_group in combined_df.groupby('client'):
+                # Determine if this is a client or competitor
+                entity_type = "clients" if entity in client_names else "competitors"
+                
+                articles = []
+                for _, row in df_group.iterrows():
+                    # Convert Timestamp to string if needed
+                    date_value = row.get('date', '')
+                    if hasattr(date_value, 'strftime'):  # Check if it's a datetime-like object
+                        date_str = date_value.strftime('%Y-%m-%d')
+                    else:
+                        date_str = str(date_value)
+                        
+                    article = {
+                        'title': row.get('title', ''),
+                        'date': date_str,
+                        'source': row.get('source', ''),
+                        'excerpt': row.get('excerpt', ''),
+                        'url': row.get('url', '')
+                    }
+                    articles.append(article)
+                
+                # Add to the appropriate section
+                data_for_claude[entity_type][entity] = articles
+                
+            # Print counts
+            print(f"Categorized {len(data_for_claude['clients'])} clients and {len(data_for_claude['competitors'])} competitors")
+            
+            # Format data as JSON string
+            import json
+            json_data = json.dumps(data_for_claude, indent=2)
+            
+            # Create the prompt for Claude
+            from templates import COMBINED_REPORT_HEADER
+            
+            prompt = f"""## Daily Financial Services News Summary
+            
+            Create a concise daily executive news summary for financial service clients and competitors. These summaries will be provided to executives who develop software and back office services for financial service companies.
+            
+            Your output must be direct, factual, and focused on the most important news from the past day.
+            
+            ### Instructions:
+            
+            1. Create a markdown document with the title "Daily Financial Services News Summary" and today's date.
+            
+            2. Create two main sections:
+               - "Client Companies" - for all companies in the "clients" object of the data
+               - "Competitor Companies" - for all companies in the "competitors" object of the data
+            
+            3. Within each section, for each company with news, include a subsection header with the company name.
+            
+            4. Write a single paragraph (3-5 sentences) that summarizes the most significant recent news for each company.
+            
+            5. Each paragraph should:
+               - Be direct and start immediately with the news
+               - Include specific facts and figures when available
+               - Only include news where the company plays a significant role
+               - Focus on information relevant to software and service providers
+            
+            6. IMPORTANT: If the story is an analyst report written by the client about another company, please ignore it. Only include news about the client/competitor company itself, not reports or analysis they publish about other companies.
+            
+            7. Format the final output as a clean, professional markdown document.
+            
+            8. VERY IMPORTANT: Only include companies under their correct category as defined in the JSON data structure. Companies in the "clients" object should ONLY appear in the "Client Companies" section, and companies in the "competitors" object should ONLY appear in the "Competitor Companies" section.
+            
+            ### News Data:
+            {json_data}
+            """
+            
+            # Call Claude API
+            claude_client = ClaudeApiClient()
+            system_prompt = 'You are an expert financial analyst creating executive summaries for the financial services industry.'
+            summary = claude_client.generate_summary(prompt, system_prompt)
+            
+            if summary:
+                # Save summary to markdown file
+                summary_filename = f"data/daily_summary_{timestamp}.md"
+                with open(summary_filename, 'w') as f:
+                    f.write(summary)
+                
+                print(f"Daily news summary saved to: {summary_filename}")
+                
+                # Keep only the combined CSV and the summary markdown file
+                files_to_keep = [os.path.abspath(combined_csv), os.path.abspath(summary_filename)]
+                cleanup_intermediate_files(files_to_keep)
+                
+                return summary_filename
+            else:
+                print("Failed to generate summary")
+                return combined_csv
+        else:
+            print("No articles found for daily summary")
+            return None
+        
+    except Exception as e:
+        print(f"Error in daily news collection: {e}")
+        return None
+
+
 if __name__ == "__main__":
     import argparse
     
@@ -454,8 +763,14 @@ if __name__ == "__main__":
                         default="clients", help="Type of entities to collect news for (both=clients+competitors, all=clients+competitors+topics)")
     parser.add_argument("--no-adaptive", action="store_false", dest="adaptive",
                         help="Disable adaptive search parameters")
+    parser.add_argument("--daily", action="store_true", 
+                        help="Collect only the prior day's news for clients and competitors and generate a single summary")
     
     args = parser.parse_args()
     
-    # Run main function with parsed arguments
-    main(target_type=args.target, use_adaptive=args.adaptive)
+    if args.daily:
+        # Run the specialized daily collection function 
+        collect_daily_news_with_summary()
+    else:
+        # Run normal weekly collection function
+        main(target_type=args.target, use_adaptive=args.adaptive)
