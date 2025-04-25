@@ -22,7 +22,7 @@ from config.config import (
 )
 from services import ClaudeApiClient
 from templates import (
-    COMPANY_PROMPT_TEMPLATE, TOPIC_PROMPT_TEMPLATE, COMBINED_REPORT_HEADER
+    COMPANY_PROMPT_TEMPLATE, COMPETITOR_PROMPT_TEMPLATE, TOPIC_PROMPT_TEMPLATE, COMBINED_REPORT_HEADER
 )
 from utils import (
     load_entities, get_entity_name, get_topic_category,
@@ -133,9 +133,9 @@ def create_prompt_for_batch(entity_batch, entity_news, entity_type="client"):
             news_data=news_data_str
         )
     elif entity_type == "competitor":
-        title = "Competitor Executive News Summary"
+        title = "Competitor Intelligence Summary"
         focus = "financial service competitors"
-        prompt = COMPANY_PROMPT_TEMPLATE.format(
+        prompt = COMPETITOR_PROMPT_TEMPLATE.format(
             focus=focus,
             title=title,
             news_data=news_data_str

@@ -810,13 +810,18 @@ def collect_daily_news_with_summary():
             
             3. Within each section, for each company with news, include a subsection header with the company name.
             
-            4. Write a single paragraph (3-5 sentences) that summarizes the most significant recent news for each company.
-            
-            5. Each paragraph should:
-               - Be direct and start immediately with the news
+            4. When writing about CLIENTS:
+               - Write a single paragraph (3-5 sentences) that summarizes the most significant recent news
+               - Focus on technology initiatives, financial performance, partnerships, new products/services
+               - Be direct and factual about developments relevant to software/service providers
                - Include specific facts and figures when available
-               - Only include news where the company plays a significant role
-               - Focus on information relevant to software and service providers
+            
+            5. When writing about COMPETITORS:
+               - Focus on strategic competitive moves and market positioning
+               - Analyze how their actions might affect the competitive landscape
+               - Highlight new products, partnerships, or acquisitions that strengthen their position
+               - Identify potential threats or opportunities their moves create
+               - Emphasize insights that help predict their future competitive actions
             
             6. IMPORTANT: If the story is an analyst report written by the client about another company, please ignore it. Only include news about the client/competitor company itself, not reports or analysis they publish about other companies.
             

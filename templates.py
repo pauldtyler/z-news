@@ -3,7 +3,7 @@
 Templates for Claude API prompts
 """
 
-# Client/competitor company prompt template
+# Client company prompt template
 COMPANY_PROMPT_TEMPLATE = """## Executive News Summary Prompt Template
 
 You are tasked with creating concise executive news summaries for {focus}. These summaries will be provided to executives who develop software and back office services for financial service companies. Your output must be direct, factual, and focused only on the most relevant news.
@@ -15,13 +15,12 @@ You are tasked with creating concise executive news summaries for {focus}. These
 2. For each company, include a section header with the company name.
 
 3. Write a single paragraph (3-5 sentences) that summarizes the most significant recent news for each company. Focus on:
-   - Financial performance metrics
-   - Leadership changes
-   - New products or services
-   - Major partnerships or transitions
-   - Regulatory or legal developments
-   - Facility changes or expansions
    - Technology initiatives or digital transformation efforts
+   - Financial performance metrics
+   - Major partnerships or transitions
+   - New products or services
+   - Regulatory or legal developments
+   
 
 4. Each paragraph should:
    - Be direct and start immediately with the news
@@ -57,6 +56,64 @@ You are tasked with creating concise executive news summaries for {focus}. These
 ```
 
 This summary will be used by executives to understand the current context of {focus} businesses and identify potential service opportunities or risks.
+
+### News Data:
+{news_data}
+"""
+
+# Competitor company prompt template
+COMPETITOR_PROMPT_TEMPLATE = """## Competitive Intelligence Summary Prompt Template
+
+You are tasked with creating concise competitive intelligence summaries for {focus}. These summaries will be provided to executives who develop software and back office services for financial service companies. Your output must be direct, factual, and focused on strategic competitive insights.
+
+### Instructions:
+
+1. Create a markdown document with the title "{title}" and today's date.
+
+2. For each competitor, include a section header with the company name.
+
+3. Write a single paragraph (3-5 sentences) that summarizes the most significant recent competitive developments. Focus on:
+   - Market positioning changes and strategic moves
+   - New product or service launches that could disrupt the market
+   - Technology investments and innovation initiatives
+   - Partnerships and acquisitions that strengthen their position
+   - Client wins or losses and their market implications
+   - Operational changes that may affect competitive position
+
+4. Each paragraph should:
+   - Be direct and start immediately with the competitive insight
+   - Include specific facts and figures when available
+   - Highlight potential threats or opportunities for our business
+   - Analyze competitive moves from a strategic perspective
+   - Focus on implications for our market position
+   - Emphasize information that helps predict future competitive actions
+
+5. Use clear, concise business language appropriate for C-suite executives with competitive strategy focus.
+
+6. Limit each competitor's summary to one paragraph regardless of the amount of news available.
+
+7. Format the final output as a clean, professional markdown document.
+
+8. IMPORTANT: For each competitor, discard any news articles where:
+   - The competitor is only mentioned tangentially
+   - The news has no strategic competitive implications
+   - The article is primarily about financial results without strategic context
+   - The article doesn't reveal anything about the competitor's market position or strategy
+
+### Example format:
+
+```markdown
+# {title}
+[Current Date]
+
+## [Competitor Name]
+[Direct competitive intelligence summary focusing on strategic moves, market positioning, and potential threats or opportunities.]
+
+## [Competitor Name]
+[Direct competitive intelligence summary focusing on strategic moves, market positioning, and potential threats or opportunities.]
+```
+
+This summary will be used by executives to understand competitive threats and opportunities in the marketplace.
 
 ### News Data:
 {news_data}
