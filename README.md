@@ -9,6 +9,7 @@ Z-News automates the collection of recent news articles for financial services c
 ## Features
 
 - Automated news collection from DuckDuckGo (daily or weekly options)
+- Website monitoring for direct tracking of company blogs and newsrooms
 - Rate limiting and error handling to prevent API blocks
 - Batched processing of multiple entities
 - Adaptive result counts based on company profile
@@ -18,6 +19,7 @@ Z-News automates the collection of recent news articles for financial services c
 - Executive summary generation using Claude API
 - Support for clients, competitors, and industry topics
 - Daily news collection with automatic cleanup of intermediate files
+- Duplicate detection to eliminate repeated stories
 
 ## Project Structure
 
@@ -28,10 +30,12 @@ z-news/
 │   ├── competitors.json    # Competitor list with search queries
 │   ├── config.py           # Configuration constants
 │   ├── topics.json         # Industry topics list with search queries
+│   ├── websites.json       # Website monitoring configuration
 │   └── __init__.py
 ├── services/               # Service modules
 │   ├── api_client.py       # Claude API client
 │   ├── search_service.py   # Search service
+│   ├── website_monitor.py  # Website monitoring service
 │   └── __init__.py
 ├── data/                   # Output directory (created at runtime)
 ├── batch_executive_summary.py  # Summary generation script
@@ -311,6 +315,76 @@ Company A has announced a new strategic partnership with Technology Provider Z t
 [Daily news summary for Competitor Y]
 ```
 
+## Website Monitoring
+
+The website monitoring system directly tracks company websites for updates to news, blogs, and press releases.
+
+### Usage
+
+```bash
+# Run website monitoring to check for updates
+python services/website_monitor.py
+
+# Run with a custom config file
+python services/website_monitor.py --config path/to/custom/websites.json
+```
+
+### Configuration
+
+The website monitoring system is configured through a JSON file located at `config/websites.json`:
+
+```json
+[
+  {
+    "name": "Company Name",
+    "url": "https://company.com/newsroom/",
+    "selector": "article.post, .news-item",
+    "frequency": 86400,
+    "type": "news"
+  }
+]
+```
+
+Each entry in the configuration includes:
+- `name`: Display name for the website
+- `url`: Full URL to the page containing news/blog content
+- `selector`: CSS selector(s) to identify individual news items (comma-separated for multiple)
+- `frequency`: Checking frequency in seconds (86400 = daily)
+- `type`: Content type (news, blog, insights, etc.)
+
+### Output
+
+Website monitoring results are saved to:
+- CSV files: `data/website_updates/website_updates_[timestamp].csv`
+- Latest file reference: `data/website_updates/latest_website_updates.txt`
+
+### Scheduling
+
+To run website monitoring on a regular schedule:
+
+#### Using macOS Calendar:
+1. Open Calendar app and create a new event
+2. Set it to repeat at your desired frequency
+3. Add an alert of type "Run script"
+4. Create a shell script in a location like ~/Documents/scripts/run_monitor.sh:
+   ```bash
+   #!/bin/bash
+   cd /Users/yourname/path/to/z-news
+   source venv/bin/activate
+   python services/website_monitor.py >> data/website_updates/monitor_log.txt 2>&1
+   ```
+5. Make the script executable: `chmod +x ~/Documents/scripts/run_monitor.sh`
+6. Select this script in the Calendar alert dialog
+
+#### Using cron:
+```bash
+# Edit crontab
+crontab -e
+
+# Add line to run daily at 8 AM
+0 8 * * * cd /path/to/z-news && /path/to/z-news/venv/bin/python /path/to/z-news/services/website_monitor.py
+```
+
 ## Requirements
 
 - Python 3.8+
@@ -318,3 +392,5 @@ Company A has announced a new strategic partnership with Technology Provider Z t
 - duckduckgo_search
 - anthropic
 - python-dotenv
+- Node.js (for website monitoring)
+- Puppeteer (npm install puppeteer, auto-installed if missing)

@@ -42,3 +42,8 @@ data/*.csv
 data/*.md
 data/*.txt
 data/*.pdf
+data/website_updates/
+debug_screenshot.png
+node_modules/
+package.json
+package-lock.json

@@ -1,0 +1,23 @@
+[
+  {
+    "name": "iPipeline Newsroom",
+    "url": "https://ipipeline.com/resources/newsroom/",
+    "selector": "article.elementor-post",
+    "frequency": 86400,
+    "type": "news"
+  },
+  {
+    "name": "iPipeline Insights",
+    "url": "https://ipipeline.com/resources/insights/",
+    "selector": "article.elementor-post",
+    "frequency": 86400,
+    "type": "blog"
+  },
+  {
+    "name": "Accenture Insurance",
+    "url": "https://www.accenture.com/us-en/insights/insurance/insurance-blog-index",
+    "selector": "div.card, div.rad-card-headline, div.rad-card-half, div.rad-card-full, div.rad-card-tertiary, article",
+    "frequency": 86400,
+    "type": "insights"
+  }
+]
