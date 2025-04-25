@@ -486,6 +486,103 @@ def cleanup_intermediate_files(files_to_keep):
     print(f"Kept {len(files_to_keep)} files.")
 
 
+def get_previous_daily_news():
+    """
+    Get the most recent daily combined news data for deduplication.
+    
+    Returns:
+        pd.DataFrame: DataFrame containing previous daily news, or empty DataFrame if not found
+    """
+    try:
+        # Look for the previous daily combined CSV file
+        previous_file_path = None
+        
+        # First, try to read from the reference file
+        try:
+            with open("data/latest_daily_combined_csv.txt", "r") as f:
+                previous_file_path = f.read().strip()
+                print(f"Found previous daily news file reference: {previous_file_path}")
+        except FileNotFoundError:
+            print("No reference file found for previous daily news")
+        
+        # If that fails, look for the most recent daily_combined CSV
+        if not previous_file_path or not os.path.exists(previous_file_path):
+            import glob
+            csv_files = glob.glob("data/daily_combined_*.csv")
+            if csv_files:
+                previous_file_path = max(csv_files, key=os.path.getctime)
+                print(f"Found previous daily news file by searching: {previous_file_path}")
+        
+        # Load the previous data if a file was found
+        if previous_file_path and os.path.exists(previous_file_path):
+            previous_df = pd.read_csv(previous_file_path)
+            print(f"Loaded previous daily news data: {len(previous_df)} articles")
+            return previous_df
+        else:
+            print("No previous daily news data found")
+            return pd.DataFrame()  # Return empty DataFrame
+            
+    except Exception as e:
+        print(f"Error loading previous daily news: {e}")
+        return pd.DataFrame()  # Return empty DataFrame on error
+
+
+def remove_duplicate_news(current_df, previous_df):
+    """
+    Remove duplicate news articles from the current DataFrame based on previous data.
+    
+    Args:
+        current_df (pd.DataFrame): The current daily news DataFrame
+        previous_df (pd.DataFrame): The previous daily news DataFrame
+        
+    Returns:
+        pd.DataFrame: DataFrame with duplicates removed
+    """
+    if previous_df.empty or current_df.empty:
+        print("No previous data or current data to deduplicate")
+        return current_df
+    
+    print(f"Checking {len(current_df)} current articles against {len(previous_df)} previous articles")
+    
+    # Create a unique identifier for each article based on title and URL
+    # This helps identify the same article even if some metadata changed
+    def create_id(row):
+        # Use title and url to create a unique identifier
+        title = str(row.get('title', '')).strip().lower()
+        url = str(row.get('url', '')).strip().lower()
+        
+        # For URLs, remove any tracking parameters or fragments
+        if '?' in url:
+            url = url.split('?')[0]
+        if '#' in url:
+            url = url.split('#')[0]
+            
+        # Combine title and URL for a more robust identifier
+        return f"{title}|{url}"
+    
+    # Add identifiers to both DataFrames
+    current_df['article_id'] = current_df.apply(create_id, axis=1)
+    previous_df['article_id'] = previous_df.apply(create_id, axis=1)
+    
+    # Get the set of previous article IDs
+    previous_ids = set(previous_df['article_id'])
+    
+    # Filter out duplicates
+    duplicate_mask = current_df['article_id'].isin(previous_ids)
+    duplicates_count = duplicate_mask.sum()
+    
+    # Get the deduplicated DataFrame
+    deduplicated_df = current_df[~duplicate_mask].copy()
+    
+    # Remove the temporary column
+    deduplicated_df.drop('article_id', axis=1, inplace=True)
+    
+    print(f"Removed {duplicates_count} duplicate articles")
+    print(f"Remaining articles after deduplication: {len(deduplicated_df)}")
+    
+    return deduplicated_df
+
+
 def collect_daily_news_with_summary():
     """
     Collect the prior day's news for clients and competitors, then generate a single 
@@ -496,6 +593,7 @@ def collect_daily_news_with_summary():
     2. Only searches for clients and competitors (not industry topics)
     3. Generates a single combined summary directly
     4. Cleans up intermediate files, keeping only the combined CSV and markdown summary
+    5. Removes duplicate news articles by comparing with previous daily summaries
     
     Returns:
         str: Path to the generated markdown summary file
@@ -632,6 +730,16 @@ def collect_daily_news_with_summary():
             dfs_to_combine = [df for df in dataframes.values() if not df.empty]
             combined_df = pd.concat(dfs_to_combine) if dfs_to_combine else pd.DataFrame()
             
+            # Get previous daily news for deduplication
+            print("\n" + "="*50)
+            print("CHECKING FOR DUPLICATE NEWS ARTICLES")
+            print("="*50)
+            previous_df = get_previous_daily_news()
+            
+            # Remove duplicate news articles
+            if not previous_df.empty:
+                combined_df = remove_duplicate_news(combined_df, previous_df)
+            
             # Save combined data
             combined_csv = save_to_csv(combined_df, timestamp, entity_type="daily_combined")
             
@@ -643,12 +751,8 @@ def collect_daily_news_with_summary():
             from services import ClaudeApiClient
             from datetime import datetime
             
-            # Load client and competitor lists
-            from config.config import load_entities
-            clients_data = load_entities("client")
-            competitors_data = load_entities("competitor")
-            
-            # Extract names
+            # We already have the client and competitor data loaded
+            # Extract names from the already loaded data
             client_names = set(c.get('name', '') for c in clients_data)
             competitor_names = set(c.get('name', '') for c in competitors_data)
             

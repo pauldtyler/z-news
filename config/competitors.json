@@ -104,6 +104,10 @@
     "query": "\"SelectQuote\" AND Insurance"
   },
   {
+    "name": "ServiceNow",
+    "query": "\"ServiceNow\" AND (Insurance OR Annuities)"
+  },
+  {
     "name": "Socotra",
     "query": "\"Socotra\" AND Insurance"
   },
