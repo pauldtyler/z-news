@@ -90,6 +90,9 @@ The script collects news from the past week and adjusts the number of results ba
 
 #### Daily Collection (with `--daily` flag)
 - Collects only the prior day's news for clients and competitors (no industry topics)
+- Automatically removes duplicate news articles by comparing with previous collections
+- Applies date filtering to ensure only recent articles (from the past 3 days) are included
+- Intelligently handles companies with only older news by keeping their most recent article
 - Generates a single consolidated markdown summary using Claude API
 - Automatic cleanup of intermediate files, keeping only the consolidated CSV and markdown summary
 

@@ -527,6 +527,71 @@ def get_previous_daily_news():
         return pd.DataFrame()  # Return empty DataFrame on error
 
 
+def filter_by_date_range(df, days=3):
+    """
+    Filter articles by date to keep only recent ones
+    
+    Args:
+        df (pd.DataFrame): DataFrame containing news articles
+        days (int): Number of days to look back
+        
+    Returns:
+        pd.DataFrame: DataFrame with only recent articles
+    """
+    if df.empty or 'date' not in df.columns:
+        return df
+    
+    print(f"Filtering articles by date range (last {days} days)...")
+    
+    # Make a copy to avoid modifying the original
+    filtered_df = df.copy()
+    
+    # Convert dates to datetime if they're not already
+    if not pd.api.types.is_datetime64_any_dtype(filtered_df['date']):
+        try:
+            filtered_df['date'] = pd.to_datetime(filtered_df['date'])
+        except Exception as e:
+            print(f"Could not convert dates: {e}")
+            return df  # Return original if date conversion fails
+    
+    # Get the cutoff date
+    now = pd.Timestamp.now()
+    cutoff_date = now - pd.Timedelta(days=days)
+    
+    # Count articles outside the range
+    old_articles = (filtered_df['date'] < cutoff_date).sum()
+    
+    if old_articles > 0:
+        print(f"Found {old_articles} articles older than {days} days")
+        
+        # Get list of companies that would have no articles after filtering
+        companies_with_only_old = []
+        for company, group in filtered_df.groupby('client'):
+            if all(date < cutoff_date for date in group['date']):
+                companies_with_only_old.append(company)
+        
+        if companies_with_only_old:
+            print(f"These companies only have older articles: {', '.join(companies_with_only_old)}")
+            print("Keeping the most recent article for each of these companies")
+            
+            # Start with articles within date range
+            result_df = filtered_df[filtered_df['date'] >= cutoff_date].copy()
+            
+            # For companies with only old articles, keep their most recent one
+            for company in companies_with_only_old:
+                company_articles = filtered_df[filtered_df['client'] == company]
+                most_recent = company_articles.loc[company_articles['date'].idxmax()]
+                result_df = pd.concat([result_df, pd.DataFrame([most_recent])])
+            
+            return result_df
+        else:
+            # If all companies have at least one recent article, apply strict filtering
+            return filtered_df[filtered_df['date'] >= cutoff_date]
+    else:
+        print("All articles are within the date range")
+        return filtered_df
+
+
 def remove_duplicate_news(current_df, previous_df):
     """
     Remove duplicate news articles from the current DataFrame based on previous data.
@@ -739,6 +804,9 @@ def collect_daily_news_with_summary():
             # Remove duplicate news articles
             if not previous_df.empty:
                 combined_df = remove_duplicate_news(combined_df, previous_df)
+            
+            # Filter by date range to keep only recent articles
+            combined_df = filter_by_date_range(combined_df, days=3)
             
             # Save combined data
             combined_csv = save_to_csv(combined_df, timestamp, entity_type="daily_combined")
