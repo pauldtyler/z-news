@@ -19,5 +19,82 @@
     "selector": "div.card, div.rad-card-headline, div.rad-card-half, div.rad-card-full, div.rad-card-tertiary, article",
     "frequency": 86400,
     "type": "insights"
+  },
+  {
+    "name": "Accenture Insurance Insights",
+    "url": "https://www.accenture.com/us-en/insights-index?filter=Insurance",
+    "selector": "div.card, div.rad-card-headline, div.rad-card-half, div.rad-card-full, div.rad-card-tertiary, article",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "Benekiva",
+    "url": "https://benekiva.com/company-news/",
+    "selector": "article, .post, .news-item",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "DXC",
+    "url": "https://dxc.com/us/en/newsroom",
+    "selector": "article, .news-item, .press-release",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "Equisoft",
+    "url": "https://www.equisoft.com/insights?type=press-release&industry=insurance#filter",
+    "selector": "article, .news-item, .press-release",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "FIDx",
+    "url": "https://fidx.io/news",
+    "selector": "article, .news-item, .post",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "Hexure",
+    "url": "https://hexure.com/press-releases/",
+    "selector": "article, .press-release, .news-item",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "iCapital",
+    "url": "https://icapital.com/newsroom/",
+    "selector": "article, .news-item, .press-release",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "iPipeline",
+    "url": "https://ipipeline.com/resources/newsroom/",
+    "selector": "article.elementor-post",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "LUMA",
+    "url": "https://lumafintech.com/blog/",
+    "selector": "article, .post, .blog-item",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "Sureify",
+    "url": "https://www.sureify.com/all-resources/#press",
+    "selector": "article, .press-release, .resource-item",
+    "frequency": 86400,
+    "type": "competitor"
+  },
+  {
+    "name": "Verisk",
+    "url": "https://www.verisk.com/company/newsroom/topics/insurance/",
+    "selector": "article, .news-item, .press-release",
+    "frequency": 86400,
+    "type": "competitor"
   }
 ]
