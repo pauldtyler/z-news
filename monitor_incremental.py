@@ -273,7 +273,7 @@ def list_completed() -> None:
     for site in completed:
         print(f"  - {site}")
 
-def show_recent_changes(limit: int = 20, company: str = None, csv_file: str = None) -> None:
+def show_recent_changes(limit: int = 20, company: str = None, csv_file: str = None, format_type: str = "text") -> None:
     """
     Show recent website changes in a readable format
     
@@ -281,6 +281,7 @@ def show_recent_changes(limit: int = 20, company: str = None, csv_file: str = No
         limit: Maximum number of changes to show
         company: Filter changes to specific company (case-insensitive)
         csv_file: Specific CSV file to read (will use most recent if not specified)
+        format_type: Output format - 'text' (default) or 'markdown'
     """
     # Find CSV files
     if csv_file:
@@ -304,6 +305,12 @@ def show_recent_changes(limit: int = 20, company: str = None, csv_file: str = No
         # Load the CSV file
         df = pd.read_csv(latest_csv)
         
+        # If markdown format requested, check if markdown file exists or create it
+        if format_type == "markdown":
+            show_markdown_changes(df, os.path.basename(latest_csv), company)
+            return
+        
+        # For text format, continue with original implementation
         # Filter by company if specified
         if company:
             # Case-insensitive partial match
@@ -341,6 +348,65 @@ def show_recent_changes(limit: int = 20, company: str = None, csv_file: str = No
             
     except Exception as e:
         print(f"Error reading CSV file: {e}")
+
+
+def show_markdown_changes(df: pd.DataFrame, csv_filename: str, company: str = None) -> None:
+    """
+    Display or generate markdown report for website changes
+    
+    Args:
+        df: DataFrame with website changes
+        csv_filename: Name of the CSV file
+        company: Filter changes to specific company (case-insensitive)
+    """
+    # Extract timestamp from CSV filename for matching markdown
+    if csv_filename.startswith('website_updates_') and csv_filename.endswith('.csv'):
+        timestamp = csv_filename[16:-4]  # Extract timestamp part
+        md_filename = f"website_changes_{timestamp}.md"
+        md_path = os.path.join(OUTPUT_DIR, md_filename)
+    else:
+        md_path = os.path.join(OUTPUT_DIR, "latest_website_changes.md")
+    
+    # Filter by company if specified
+    if company:
+        # Case-insensitive partial match
+        df_filtered = df[df['site_name'].str.lower().str.contains(company.lower())]
+        if len(df_filtered) == 0:
+            print(f"No changes found for company matching '{company}'")
+            print("Available companies:")
+            for site in sorted(df['site_name'].unique()):
+                print(f"  - {site}")
+            return
+        
+        # Generate a custom markdown for the filtered company
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        from services.website_monitor import generate_markdown_report
+        custom_md_path = generate_markdown_report(df_filtered, f"{timestamp}_{company}")
+        
+        # Display the path to the generated file
+        print(f"Generated markdown report for '{company}': {custom_md_path}")
+        
+        # Optionally display the content directly
+        with open(custom_md_path, 'r') as f:
+            print("\n" + f.read())
+        
+        return
+    
+    # Check if the markdown file already exists
+    if os.path.exists(md_path):
+        print(f"Showing markdown report: {md_path}")
+        with open(md_path, 'r') as f:
+            print("\n" + f.read())
+    else:
+        # Generate markdown from the data
+        from services.website_monitor import generate_markdown_report
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        md_path = generate_markdown_report(df, timestamp)
+        print(f"Generated markdown report: {md_path}")
+        
+        # Display the content
+        with open(md_path, 'r') as f:
+            print("\n" + f.read())
         
 def list_available_csvs() -> None:
     """List available CSV files with website changes"""
@@ -374,6 +440,8 @@ if __name__ == "__main__":
                         help="List completed websites and exit")
     parser.add_argument("--show-changes", action="store_true",
                         help="Show recent website changes and exit")
+    parser.add_argument("--markdown", action="store_true",
+                        help="Display changes in markdown format")
     parser.add_argument("--limit", type=int, default=20,
                         help="Limit number of changes to show (default: 20)")
     parser.add_argument("--company", type=str,
@@ -382,6 +450,8 @@ if __name__ == "__main__":
                         help="Specific CSV file to read for changes")
     parser.add_argument("--list-files", action="store_true",
                         help="List available CSV files with website changes")
+    parser.add_argument("--list-markdown", action="store_true",
+                        help="List available markdown reports")
     
     args = parser.parse_args()
     
@@ -398,8 +468,25 @@ if __name__ == "__main__":
         list_available_csvs()
         exit(0)
         
+    if args.list_markdown:
+        # List all markdown reports in the output directory
+        md_files = [f for f in os.listdir(OUTPUT_DIR) if f.startswith('website_changes_') and f.endswith('.md')]
+        if not md_files:
+            print("No markdown reports found")
+        else:
+            # Sort by modification time (newest first)
+            md_files.sort(key=lambda f: os.path.getmtime(os.path.join(OUTPUT_DIR, f)), reverse=True)
+            print(f"Available markdown reports ({len(md_files)}):")
+            for idx, file in enumerate(md_files[:10], 1):  # Show most recent 10
+                timestamp = os.path.getmtime(os.path.join(OUTPUT_DIR, file))
+                time_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                print(f"{idx}. {file} (created: {time_str})")
+        exit(0)
+        
     if args.show_changes:
-        show_recent_changes(args.limit, args.company, args.csv_file)
+        # Use markdown format if requested
+        format_type = "markdown" if args.markdown else "text"
+        show_recent_changes(args.limit, args.company, args.csv_file, format_type)
         exit(0)
     
     # Use specified config path or default

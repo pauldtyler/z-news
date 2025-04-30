@@ -478,7 +478,84 @@ def save_changes_to_csv(changes: List[Dict[str, Any]]) -> Optional[str]:
     with open(reference_path, 'w') as f:
         f.write(csv_path)
     
+    # Generate markdown report for these changes
+    md_path = generate_markdown_report(df, timestamp)
+    
     return csv_path
+
+
+def generate_markdown_report(df: pd.DataFrame, timestamp: str) -> str:
+    """
+    Generate a markdown report for website changes
+    
+    Args:
+        df: DataFrame with website changes
+        timestamp: Timestamp string for the filename
+        
+    Returns:
+        Path to the markdown file
+    """
+    # Create markdown file path
+    md_path = os.path.join(OUTPUT_DIR, f"website_changes_{timestamp}.md")
+    
+    # Group changes by site
+    site_groups = df.groupby('site_name')
+    
+    # Start building markdown content
+    md_content = f"# Website Changes Report\n\n"
+    md_content += f"*Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*\n\n"
+    
+    # Summary section
+    md_content += "## Summary\n\n"
+    md_content += f"- **Total changes detected:** {len(df)}\n"
+    md_content += f"- **Sites with changes:** {len(site_groups)}\n"
+    
+    # Changes by type
+    change_types = df['change_type'].value_counts()
+    md_content += "- **Changes by type:**\n"
+    for change_type, count in change_types.items():
+        md_content += f"  - {change_type.capitalize()}: {count}\n"
+    md_content += "\n"
+    
+    # Detailed changes by site
+    md_content += "## Changes by Site\n\n"
+    
+    for site_name, group in site_groups:
+        md_content += f"### {site_name}\n\n"
+        
+        # Site metadata
+        site_url = group['site_url'].iloc[0]
+        md_content += f"- **Site URL:** [{site_url}]({site_url})\n"
+        md_content += f"- **Content type:** {group['content_type'].iloc[0]}\n"
+        md_content += f"- **Changes detected:** {len(group)}\n\n"
+        
+        # List all changes for this site
+        for _, row in group.iterrows():
+            md_content += f"#### {row['title']}\n\n"
+            md_content += f"- **Type:** {row['change_type'].capitalize()}\n"
+            
+            if not pd.isna(row['url']) and row['url']:
+                md_content += f"- **URL:** [{row['url']}]({row['url']})\n"
+            
+            if not pd.isna(row['date']) and row['date']:
+                md_content += f"- **Date:** {row['date']}\n"
+            
+            if not pd.isna(row['excerpt']) and row['excerpt']:
+                md_content += f"- **Excerpt:** {row['excerpt']}\n"
+            
+            md_content += f"- **Detected at:** {row['detected_at']}\n\n"
+    
+    # Write to file
+    with open(md_path, 'w') as f:
+        f.write(md_content)
+    
+    # Update latest markdown reference
+    reference_path = os.path.join(OUTPUT_DIR, "latest_website_changes.md")
+    with open(reference_path, 'w') as f:
+        f.write(md_content)
+    
+    logger.info(f"Generated markdown report: {md_path}")
+    return md_path
 
 def monitor_website(website: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
