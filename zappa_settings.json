@@ -1,0 +1,24 @@
+{
+    "dev": {
+        "app_function": "app.app",
+        "aws_region": "us-east-1",
+        "profile_name": "default",
+        "project_name": "z-news",
+        "runtime": "python3.8",
+        "s3_bucket": "z-news-deployments",
+        "memory_size": 1024,
+        "timeout_seconds": 120,
+        "keep_warm": true,
+        "keep_warm_expression": "rate(5 minutes)",
+        "environment_variables": {
+            "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
+            "PYTHONPATH": "/var/task"
+        },
+        "slim_handler": true,
+        "cors": true,
+        "log_level": "INFO",
+        "api_gateway_enabled": true,
+        "manage_roles": true,
+        "python_version": "3.8"
+    }
+}

@@ -1,0 +1,7 @@
+anthropic==0.16.0
+duckduckgo-search==4.1.1
+pandas==1.5.3
+python-dotenv==0.21.1
+flask==2.0.3
+zappa==0.56.1
+werkzeug==2.0.3
