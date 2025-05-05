@@ -18,10 +18,10 @@ You are tasked with creating concise executive news summaries for {focus}. These
    - Technology initiatives or digital transformation efforts
    - Financial performance metrics
    - Major partnerships or transitions
+   - C-suite changes or major leadership transitions
    - New products or services
    - Regulatory or legal developments
    
-
 4. Each paragraph should:
    - Be direct and start immediately with the news
    - Include specific facts and figures when available

@@ -9,7 +9,9 @@ Z-News automates the collection of recent news articles for financial services c
 ## Features
 
 - Automated news collection from DuckDuckGo (daily or weekly options)
-- Website monitoring for direct tracking of company blogs and newsrooms
+- Robust website monitoring for direct tracking of company blogs and newsrooms
+- Incremental website monitoring with checkpointing to prevent timeouts
+- Comprehensive tools for viewing and analyzing website changes
 - Rate limiting and error handling to prevent API blocks
 - Batched processing of multiple entities
 - Adaptive result counts based on company profile
@@ -40,6 +42,7 @@ z-news/
 ├── data/                   # Output directory (created at runtime)
 ├── batch_executive_summary.py  # Summary generation script
 ├── collect_all_news.py     # News collection script
+├── monitor_incremental.py  # Robust incremental website monitoring
 ├── templates.py            # Templates for Claude prompts
 ├── utils.py                # Utility functions
 └── README.md
@@ -90,6 +93,9 @@ The script collects news from the past week and adjusts the number of results ba
 
 #### Daily Collection (with `--daily` flag)
 - Collects only the prior day's news for clients and competitors (no industry topics)
+- Automatically removes duplicate news articles by comparing with previous collections
+- Applies date filtering to ensure only recent articles (from the past 3 days) are included
+- Intelligently handles companies with only older news by keeping their most recent article
 - Generates a single consolidated markdown summary using Claude API
 - Automatic cleanup of intermediate files, keeping only the consolidated CSV and markdown summary
 
@@ -157,7 +163,17 @@ For a complete weekly news summary:
    python batch_executive_summary.py --type all --combined
    ```
 
-3. View the generated markdown files in the `data` directory or convert them to other formats as needed.
+3. Monitor competitor websites for direct updates:
+   ```bash
+   python monitor_incremental.py 
+   ```
+
+4. View any detected website changes:
+   ```bash
+   python monitor_incremental.py --show-changes
+   ```
+
+5. View the generated markdown files in the `data` directory or convert them to other formats as needed.
 
 ### Daily Workflow
 
@@ -168,7 +184,17 @@ For a quick daily news update:
    python collect_all_news.py --daily
    ```
 
-2. The script will:
+2. Monitor competitor websites (process a few at a time to avoid timeouts):
+   ```bash
+   python monitor_incremental.py --max-sites 5
+   ```
+
+3. Review any website changes detected:
+   ```bash
+   python monitor_incremental.py --show-changes
+   ```
+
+4. The collection script will:
    - Collect news from the past day
    - Generate a consolidated summary with Claude
    - Clean up intermediate files automatically
@@ -322,11 +348,44 @@ The website monitoring system directly tracks company websites for updates to ne
 ### Usage
 
 ```bash
-# Run website monitoring to check for updates
+# Run website monitoring to check for updates (standard method)
 python services/website_monitor.py
 
 # Run with a custom config file
 python services/website_monitor.py --config path/to/custom/websites.json
+
+# For improved reliability and timeout prevention:
+python monitor_incremental.py
+
+# Process just a few websites at a time (good for timeouts)
+python monitor_incremental.py --max-sites 3
+
+# Continue from where you left off 
+python monitor_incremental.py --max-sites 3
+
+# List completed websites
+python monitor_incremental.py --list
+
+# View recent website changes (new/updated content)
+python monitor_incremental.py --show-changes
+
+# Show more or fewer changes
+python monitor_incremental.py --show-changes --limit 10
+
+# Filter changes for a specific company
+python monitor_incremental.py --show-changes --company "luma"
+
+# List available CSV files with website changes
+python monitor_incremental.py --list-files
+
+# View changes from a specific CSV file
+python monitor_incremental.py --show-changes --csv-file website_updates_20250427_181345.csv
+
+# Start fresh (ignore previous progress)
+python monitor_incremental.py --fresh
+
+# Clear checkpoint and start over
+python monitor_incremental.py --clear
 ```
 
 ### Configuration
@@ -358,6 +417,54 @@ Website monitoring results are saved to:
 - CSV files: `data/website_updates/website_updates_[timestamp].csv`
 - Latest file reference: `data/website_updates/latest_website_updates.txt`
 
+### Incremental Monitoring
+
+The `monitor_incremental.py` script provides a more robust way to monitor websites with these advantages:
+
+- Processes one website at a time with progress checkpointing
+- Automatically resumes where it left off if interrupted
+- Can process websites in smaller batches to prevent timeouts
+- Provides monitoring status and progress information
+- More resilient to timeouts and connection issues
+
+Key features:
+- Progress tracking: Monitors and saves which websites have been processed
+- Resumable: Can continue from where it was interrupted
+- Configurable: Control how many sites to process in a single run
+- Progress visibility: Shows completed websites and monitoring status
+
+### Viewing Website Changes
+
+The incremental monitor provides comprehensive tools to view and analyze detected changes:
+
+```bash
+# View all recent changes
+python monitor_incremental.py --show-changes
+
+# Show only the first 5 changes
+python monitor_incremental.py --show-changes --limit 5
+
+# View changes for a specific company
+python monitor_incremental.py --show-changes --company "ipipe"  # Partial match works
+
+# List all available change files
+python monitor_incremental.py --list-files
+
+# View changes from a specific file
+python monitor_incremental.py --show-changes --csv-file website_updates_20250427_181322.csv
+```
+
+The change viewer displays:
+- A summary of total changes detected
+- Changes grouped by company and type (new/updated)
+- Detailed information for each change including:
+  - Title of the content
+  - URL to view the full content
+  - Publication date (when available)
+  - Content excerpt (when available)
+
+This makes it easy to quickly scan for important updates and access the full content directly.
+
 ### Scheduling
 
 To run website monitoring on a regular schedule:
@@ -371,7 +478,9 @@ To run website monitoring on a regular schedule:
    #!/bin/bash
    cd /Users/yourname/path/to/z-news
    source venv/bin/activate
-   python services/website_monitor.py >> data/website_updates/monitor_log.txt 2>&1
+   
+   # Use the incremental monitor instead of the standard one
+   python monitor_incremental.py --max-sites 5 >> data/website_updates/monitor_log.txt 2>&1
    ```
 5. Make the script executable: `chmod +x ~/Documents/scripts/run_monitor.sh`
 6. Select this script in the Calendar alert dialog
@@ -381,8 +490,11 @@ To run website monitoring on a regular schedule:
 # Edit crontab
 crontab -e
 
-# Add line to run daily at 8 AM
-0 8 * * * cd /path/to/z-news && /path/to/z-news/venv/bin/python /path/to/z-news/services/website_monitor.py
+# Add line to run daily at 8 AM with incremental monitor
+0 8 * * * cd /path/to/z-news && /path/to/z-news/venv/bin/python /path/to/z-news/monitor_incremental.py --max-sites 5 >> /path/to/z-news/data/website_updates/monitor_log.txt 2>&1
+
+# For larger sets of websites, run multiple times throughout the day
+0 8,12,16,20 * * * cd /path/to/z-news && /path/to/z-news/venv/bin/python /path/to/z-news/monitor_incremental.py --max-sites 3 >> /path/to/z-news/data/website_updates/monitor_log.txt 2>&1
 ```
 
 ## Requirements
