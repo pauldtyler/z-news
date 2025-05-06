@@ -11,7 +11,7 @@
         "keep_warm": true,
         "keep_warm_expression": "rate(5 minutes)",
         "environment_variables": {
-            "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
+            "ANTHROPIC_API_KEY": "${ssm:/z-news/ANTHROPIC_API_KEY}",
             "PYTHONPATH": "/var/task"
         },
         "slim_handler": true,
@@ -19,6 +19,7 @@
         "log_level": "INFO",
         "api_gateway_enabled": true,
         "manage_roles": true,
-        "python_version": "3.8"
+        "python_version": "3.8",
+        "exclude": ["*.so", "*.dll", "*.dylib", "curl_cffi", "duckduckgo_search"]
     }
 }

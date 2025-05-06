@@ -57,6 +57,12 @@ z-news/
      -d '{"company_name":"Prudential Financial, Inc.", "time_filter":"w", "summary_type":"client"}'
    ```
 
+   ```bash
+   curl -X POST http://127.0.0.1:5000/z-news \
+     -H "Content-Type: application/json" \
+     -d '{"company_name":"Symetra", "time_filter":"d", "summary_type":"client"}'
+   ```
+
 ## Zappa Configuration
 
 The `zappa_settings.json` file is pre-configured with two environments:
@@ -174,7 +180,16 @@ curl -X POST https://YOUR_API_GATEWAY_URL/dev/z-news \
   -H "Content-Type: application/json" \
   -d '{"company_name":"Prudential Financial, Inc.", "time_filter":"w", "summary_type":"client"}'
 ```
+Test your API with:
+```bash
 
+curl -X POST https://3b46lk7dvk.execute-api.us-east-1.amazonaws.com/dev/z-news \
+  -H "Content-Type: application/json" \
+  -d '{"company_name":"Prudential Financial, Inc.", "time_filter":"w", "summary_type":"client"}'
+```
+```bash
+curl https://3b46lk7dvk.execute-api.us-east-1.amazonaws.com/dev/healthcheck
+```
 ### `/healthcheck` (GET)
 
 A simple endpoint to verify the API is running.

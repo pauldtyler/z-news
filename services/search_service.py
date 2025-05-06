@@ -5,10 +5,15 @@ Search service to handle news searches with proper error handling and rate limit
 
 import time
 import random
+import json
+import requests
 from typing import List, Dict, Any, Optional, Union
+import logging
 
-from duckduckgo_search import DDGS
+# Configure logging
+logger = logging.getLogger('z-news')
 
+# Import configuration
 from config.config import (
     MAX_RETRIES,
     INITIAL_BACKOFF,
@@ -35,7 +40,7 @@ class SearchService:
     def search_news(self, query: str, max_results: int = 10, 
                     time_filter: Optional[str] = 'm', attempt: int = 1) -> List[Dict[str, Any]]:
         """
-        Search for news articles using DuckDuckGo with robust error handling
+        Search for news articles using requests-based fetching with robust error handling
         
         Args:
             query: The search query
@@ -48,71 +53,86 @@ class SearchService:
         """
         results = []
         
+        # Convert time_filter to DuckDuckGo format
+        time_map = {
+            'd': '1d',  # day
+            'w': '1w',  # week
+            'm': '1m',  # month
+            'y': '1y'   # year
+        }
+        
+        ddg_time = time_map.get(time_filter, '1m')  # Default to 1 month
+        
         try:
-            # For version 8.x, the parameter is timelimit
-            with DDGS() as ddgs:
-                for r in ddgs.news(query, max_results=max_results, timelimit=time_filter):
-                    results.append(r)
-                    
-        except Exception as e:
+            # Construct the search URL
+            encoded_query = requests.utils.quote(query)
+            url = f"https://duckduckgo.com/news.js?q={encoded_query}&o=json&df={ddg_time}&kl=us-en"
+            
+            # User-Agent to mimic browser
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate, br"
+            }
+            
+            logger.info(f"Searching for news with query: {query}, time filter: {ddg_time}")
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()  # Raise exception for bad status codes
+            
+            # Parse the response
+            try:
+                data = response.json()
+                news_items = data.get('results', [])
+                
+                # Process results
+                for item in news_items[:max_results]:
+                    result_dict = {
+                        'title': item.get('title', ''),
+                        'body': item.get('excerpt', ''),
+                        'href': item.get('url', ''),
+                        'source': item.get('source', ''),
+                        'date': item.get('date', '')
+                    }
+                    results.append(result_dict)
+                
+                logger.info(f"Found {len(results)} news results")
+                
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.error(f"Error parsing search results: {str(e)}")
+                # Handle empty or invalid response
+                if attempt < MAX_RETRIES:
+                    wait_time = min(INITIAL_BACKOFF * (2 ** (attempt - 1)), MAX_BACKOFF)
+                    logger.info(f"Retrying in {wait_time:.1f} seconds (attempt {attempt}/{MAX_RETRIES})...")
+                    time.sleep(wait_time)
+                    return self.search_news(query, max_results, time_filter, attempt + 1)
+                
+        except requests.exceptions.RequestException as e:
             error_msg = str(e).lower()
-            print(f"Error searching for '{query}': {e}")
+            logger.error(f"Error searching for '{query}': {str(e)}")
             
             # Check if the error is related to rate limiting
             is_rate_limit = any(indicator in error_msg for indicator in self.rate_limit_indicators)
             
-            if is_rate_limit:
+            if is_rate_limit or response.status_code == 429:
                 if attempt < MAX_RETRIES:
                     # Calculate wait time with exponential backoff and jitter
-                    # Base wait time doubles with each attempt
                     base_wait = min(INITIAL_BACKOFF * (2 ** (attempt - 1)), MAX_BACKOFF)
-                    # Add small random jitter (±10%) to avoid thundering herd problem
                     jitter = base_wait * 0.1 * (2 * (random.random() - 0.5))
                     wait_time = base_wait + jitter
                     
-                    print(f"  → Rate limit detected. Waiting {wait_time:.1f} seconds before retry {attempt}/{MAX_RETRIES}...")
+                    logger.info(f"Rate limit detected. Waiting {wait_time:.1f} seconds before retry {attempt}/{MAX_RETRIES}...")
                     time.sleep(wait_time)
                     
                     # Retry with same parameters
                     return self.search_news(query, max_results, time_filter, attempt + 1)
-                else:
-                    print(f"  → Maximum retries reached. Trying fallback method...")
             
-            # Try alternative approach if the first method fails or max retries reached
-            try:
-                print(f"  → Trying without time filter...")
-                with DDGS() as ddgs:
-                    # First try without time filter as fallback
-                    for r in ddgs.news(query, max_results=max_results):
-                        results.append(r)
-                
-                # If we got results, return them
-                if results:
-                    print(f"  → Fallback succeeded with {len(results)} results")
-                    return results
-                    
-            except Exception as e2:
-                error_msg2 = str(e2).lower()
-                print(f"  → Alternative method also failed: {e2}")
-                
-                # Check if the fallback hit a rate limit too
-                is_rate_limit2 = any(indicator in error_msg2 for indicator in self.rate_limit_indicators)
-                
-                if is_rate_limit2 and attempt < MAX_RETRIES:
-                    # Wait even longer before retrying a final time with reduced results
-                    wait_time = min(INITIAL_BACKOFF * (2 ** attempt), MAX_BACKOFF)
-                    print(f"  → Rate limit on fallback. Final attempt with {max(1, max_results // 2)} results in {wait_time} seconds...")
-                    time.sleep(wait_time)
-                    
-                    # Last attempt with reduced results
-                    try:
-                        with DDGS() as ddgs:
-                            # Last resort: try with reduced results and no time filter
-                            reduced_results = max(1, max_results // 2)
-                            for r in ddgs.news(query, max_results=reduced_results):
-                                results.append(r)
-                        print(f"  → Final attempt got {len(results)} results")
-                    except Exception as e3:
-                        print(f"  → All methods failed. No results available.")
+            # Try fallback approach with different time filter if first attempt failed
+            if attempt < MAX_RETRIES:
+                logger.info(f"Trying with different time filter as fallback...")
+                # Use a more lenient time filter
+                fallback_time = 'm' if time_filter != 'm' else 'y'
+                return self.search_news(query, max_results, fallback_time, attempt + 1)
         
+        # Return whatever results we have, could be empty
         return results

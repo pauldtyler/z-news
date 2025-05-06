@@ -16,6 +16,10 @@
     "query": "\"Benekiva\" AND (Insurance OR Claims OR \"Policy Administration\")"
   },
   {
+    "name": "Cognizant",
+    "query": "\"Cognizant\" AND (Insurance OR \"Life Insurance\")"
+  },
+  {
     "name": "Covr",
     "query": "\"Covr\" AND (Insurance OR \"Life Insurance\")"
   },
@@ -68,6 +72,14 @@
     "query": "\"iPipeline\" AND (Insurance OR Annuities)"
   },
   {
+    "name": "Orion Redtail",
+    "query": "\"Orion\" AND Redtail AND (Insurance OR Annuities)"
+  },
+  {
+    "name": "Wealthbox",
+    "query": "\"Wealthbox\" AND CRM"
+  },
+  {
     "name": "LIDP",
     "query": "\"LIDP Consulting\" OR \"LIDP\" AND (Insurance OR \"Policy Administration\")"
   },
@@ -108,6 +120,10 @@
     "query": "\"ServiceNow\" AND (Insurance OR Annuities)"
   },
   {
+    "name": "Salesforce",
+    "query": "\"Salesforce\" AND (Insurance OR Annuities)"
+  },
+  {
     "name": "Socotra",
     "query": "\"Socotra\" AND Insurance"
   },
@@ -124,12 +140,16 @@
     "query": "\"The Zebra\" AND Insurance"
   },
   {
+    "name": "TCS",
+    "query": "\"TCS\" AND Insurance"
+  },
+  {
     "name": "Unqork",
     "query": "\"Unqork\" AND (Insurance OR Financial OR No-code)"
   },
   {
     "name": "Verisk",
-    "query": "\"Verisk\" AND Insurance"
+    "query": "\"Verisk\" AND FAST"
   },
   {
     "name": "WNS Global Services",

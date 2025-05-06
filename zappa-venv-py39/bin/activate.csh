@@ -9,17 +9,17 @@ alias deactivate 'test $?_OLD_VIRTUAL_PATH != 0 && setenv PATH "$_OLD_VIRTUAL_PA
 # Unset irrelevant variables.
 deactivate nondestructive
 
-setenv VIRTUAL_ENV /Users/paultyler/Documents/zinnia/development/z-news/zappa-venv-py39
+setenv VIRTUAL_ENV /Users/paultyler/Documents/development/z-news/zappa-venv-py39
 
 set _OLD_VIRTUAL_PATH="$PATH"
 setenv PATH "$VIRTUAL_ENV/"bin":$PATH"
+setenv VIRTUAL_ENV_PROMPT zappa-venv-py39
 
 
 set _OLD_VIRTUAL_PROMPT="$prompt"
 
 if (! "$?VIRTUAL_ENV_DISABLE_PROMPT") then
-    set prompt = '(zappa-venv-py39) '"$prompt"
-    setenv VIRTUAL_ENV_PROMPT '(zappa-venv-py39) '
+    set prompt = "("zappa-venv-py39") $prompt:q"
 endif
 
 alias pydoc python -m pydoc

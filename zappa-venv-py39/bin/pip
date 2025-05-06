@@ -1,4 +1,4 @@
-#!/Users/paultyler/Documents/zinnia/development/z-news/zappa-venv-py39/bin/python3.12
+#!/Users/paultyler/Documents/development/z-news/zappa-venv-py39/bin/python3.13
 # -*- coding: utf-8 -*-
 import re
 import sys
