@@ -25,13 +25,35 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install pandas duckduckgo_search anthropic python-dotenv
+        echo "✅ Dependencies installed successfully"
+        
+    - name: Test environment
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        echo "Testing environment setup..."
+        python test_environment.py
         
     - name: Collect daily news
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      continue-on-error: true
       run: |
         echo "Starting news collection..."
-        timeout 20m python collect_all_news.py --daily || echo "News collection failed or timed out, using existing data"
+        echo "Environment check:"
+        echo "- Python version: $(python --version)"
+        echo "- Current directory: $(pwd)"
+        echo "- Available files: $(ls -la)"
+        echo "- API key configured: ${ANTHROPIC_API_KEY:+Yes}"
+        echo ""
+        
+        echo "Attempting news collection with timeout..."
+        if timeout 20m python collect_all_news.py --daily; then
+          echo "✅ News collection completed successfully"
+        else
+          echo "⚠️ News collection failed or timed out"
+          echo "Exit code: $?"
+        fi
         
     - name: Check collected data
       run: |
@@ -49,12 +71,22 @@ jobs:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         echo "Generating summary from available data..."
+        echo "Checking what data is available:"
+        echo "- Sample data exists: $([ -f 'sample_data.csv' ] && echo 'Yes' || echo 'No')"
+        echo "- Data directory exists: $([ -d 'data' ] && echo 'Yes' || echo 'No')"
+        
         # First try with latest collected data
-        if python generate_daily_summary.py; then
+        echo "Attempting to generate summary from collected data..."
+        if python generate_daily_summary.py 2>&1; then
           echo "✅ Successfully generated summary from collected data"
         elif [ -f "sample_data.csv" ]; then
           echo "⚠️ Using sample data as fallback"
-          python generate_daily_summary.py --file sample_data.csv
+          if python generate_daily_summary.py --file sample_data.csv 2>&1; then
+            echo "✅ Successfully generated summary from sample data"
+          else
+            echo "❌ Sample data generation failed, using test JSON"
+            python create_test_json.py
+          fi
         else
           echo "⚠️ No data available, creating test JSON"
           python create_test_json.py
