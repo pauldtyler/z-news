@@ -31,15 +31,34 @@ jobs:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         echo "Starting news collection..."
-        python collect_all_news.py --daily || echo "News collection failed, using existing data"
+        timeout 20m python collect_all_news.py --daily || echo "News collection failed or timed out, using existing data"
+        
+    - name: Check collected data
+      run: |
+        echo "Checking for collected news data..."
+        ls -la data/ || echo "No data directory"
+        ls -la data/*daily_combined*.csv 2>/dev/null || echo "No daily_combined CSV files found"
+        ls -la data/latest_daily_combined_csv.txt 2>/dev/null || echo "No latest CSV reference file"
+        if [ -f "data/latest_daily_combined_csv.txt" ]; then
+          echo "Latest CSV reference:"
+          cat data/latest_daily_combined_csv.txt
+        fi
         
     - name: Generate daily summary JSON
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         echo "Generating summary from available data..."
-        # First try with latest data, fall back to test JSON if needed
-        python generate_daily_summary.py || python create_test_json.py
+        # First try with latest collected data
+        if python generate_daily_summary.py; then
+          echo "✅ Successfully generated summary from collected data"
+        elif [ -f "sample_data.csv" ]; then
+          echo "⚠️ Using sample data as fallback"
+          python generate_daily_summary.py --file sample_data.csv
+        else
+          echo "⚠️ No data available, creating test JSON"
+          python create_test_json.py
+        fi
         
     - name: Check generated files
       run: |
