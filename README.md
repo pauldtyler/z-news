@@ -497,6 +497,164 @@ crontab -e
 0 8,12,16,20 * * * cd /path/to/z-news && /path/to/z-news/venv/bin/python /path/to/z-news/monitor_incremental.py --max-sites 3 >> /path/to/z-news/data/website_updates/monitor_log.txt 2>&1
 ```
 
+## API Deployment for Next.js Integration
+
+Z-News includes a deployed AWS Lambda API for integration with Next.js websites and applications.
+
+### API Endpoint
+
+The production API is available at:
+```
+https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary
+```
+
+### API Response Format
+
+The API returns a JSON response optimized for website integration:
+
+```json
+{
+  "date": "2025-05-22",
+  "generated_at": "2025-05-22T23:55:45.574948",
+  "summary": "# Financial Services News Summary - May 22, 2025\n\n## Service Status\n\nThe news search service is currently experiencing connectivity issues with external data providers...",
+  "companies_included": [
+    "Ameriprise Financial, Inc.",
+    "American National Life Insurance", 
+    "Advisors Excel, LLC"
+  ],
+  "total_articles": 0,
+  "time_period": "past week",
+  "status": "service_unavailable"
+}
+```
+
+### Next.js Integration
+
+#### 1. Create Vercel Cron Job API Route
+
+Create `pages/api/cron/daily-summary.js` (or `app/api/cron/daily-summary/route.js` for App Router):
+
+```javascript
+// pages/api/cron/daily-summary.js
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  try {
+    const response = await fetch(
+      'https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary'
+    );
+    const data = await response.json();
+    
+    // Store in your database/storage (implement based on your setup)
+    // await saveDailySummary(data);
+    
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching daily summary:', error);
+    res.status(500).json({ error: error.message });
+  }
+}
+```
+
+#### 2. Configure Vercel Cron
+
+Add to your `vercel.json`:
+
+```json
+{
+  "crons": [{
+    "path": "/api/cron/daily-summary",
+    "schedule": "0 8 * * *"
+  }]
+}
+```
+
+This runs daily at 8 AM UTC.
+
+#### 3. Display Summary on Your Site
+
+Create a page component to display the daily summary:
+
+```javascript
+// components/DailySummary.jsx
+import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+
+export default function DailySummary() {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch stored summary from your database/API
+    fetchDailySummary();
+  }, []);
+
+  const fetchDailySummary = async () => {
+    try {
+      // Replace with your actual data fetching logic
+      const response = await fetch('/api/get-daily-summary');
+      const data = await response.json();
+      setSummary(data);
+    } catch (error) {
+      console.error('Error fetching summary:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div>Loading daily summary...</div>;
+  if (!summary) return <div>No summary available</div>;
+
+  return (
+    <div className="daily-summary">
+      <div className="summary-meta">
+        <p>Generated: {new Date(summary.generated_at).toLocaleDateString()}</p>
+        <p>Companies: {summary.companies_included.length}</p>
+        <p>Articles: {summary.total_articles}</p>
+      </div>
+      
+      <div className="summary-content">
+        <ReactMarkdown>{summary.summary}</ReactMarkdown>
+      </div>
+    </div>
+  );
+}
+```
+
+#### 4. Manual API Testing
+
+You can test the API directly:
+
+```bash
+curl "https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary"
+```
+
+Or with query parameters:
+
+```bash
+curl "https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary?companies=Company%20A,Company%20B"
+```
+
+### API Features
+
+- **CORS enabled**: Ready for browser requests
+- **Lightweight**: No heavy dependencies, fast response times
+- **Graceful fallbacks**: Returns informative messages when search services are unavailable
+- **Flexible company selection**: Supports custom company lists via query parameters
+- **Markdown-ready**: Summary content is formatted for direct markdown rendering
+
+### Local Development
+
+For local testing, you can also run the Flask development server:
+
+```bash
+python app.py
+```
+
+Then access: `http://localhost:5000/daily-summary`
+
 ## Requirements
 
 - Python 3.8+

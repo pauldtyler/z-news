@@ -150,3 +150,68 @@ def save_latest_file_reference(file_path: str, entity_type: EntityType) -> None:
             f.write(file_path)
     except Exception as e:
         print(f"Error saving reference to latest {entity_type} file: {e}")
+
+def calculate_relevance_score(title: str, excerpt: str, entity_name: str) -> float:
+    """
+    Calculate a relevance score for an article based on how central the entity is to the content.
+    
+    Args:
+        title: The article title
+        excerpt: The article excerpt or body
+        entity_name: The entity name to check for
+        
+    Returns:
+        A relevance score between 0 and 1
+    """
+    # Convert all to lowercase for case-insensitive matching
+    title_lower = title.lower()
+    excerpt_lower = excerpt.lower()
+    
+    # Extract the main part of the entity name (remove "Inc.", "& Co.", etc.)
+    main_entity_parts = entity_name.split(',')[0].strip()
+    main_entity = main_entity_parts.split('&')[0].strip()
+    main_entity = main_entity.split(':')[-1].strip()  # Handle topic format "Category: Topic"
+    
+    # Generate variations of the entity name
+    entity_variations = [
+        entity_name.lower(),
+        main_entity.lower()
+    ]
+    
+    # Add additional common variations for specific entities
+    if "J.P. Morgan" in entity_name:
+        entity_variations.extend(["jpmorgan", "jp morgan", "j.p. morgan"])
+    elif "Legal & General" in entity_name:
+        entity_variations.extend(["legal and general", "l&g"])
+    
+    # Base score components
+    title_score = 0
+    excerpt_score = 0
+    position_score = 0
+    
+    # Check title (high importance)
+    for variation in entity_variations:
+        if variation in title_lower:
+            title_score = 0.6
+            # Higher score if entity is at the beginning of the title
+            if title_lower.find(variation) < len(title_lower) // 3:
+                title_score = 0.7
+            break
+    
+    # Check excerpt (lower importance)
+    for variation in entity_variations:
+        if variation in excerpt_lower:
+            excerpt_score = 0.3
+            # Calculate position - higher score if entity appears earlier
+            position = excerpt_lower.find(variation)
+            if position < len(excerpt_lower) // 4:  # In the first quarter
+                position_score = 0.2
+            elif position < len(excerpt_lower) // 2:  # In the first half
+                position_score = 0.1
+            break
+    
+    # Calculate final score
+    final_score = title_score + excerpt_score + position_score
+    
+    # Cap at 1.0
+    return min(final_score, 1.0)

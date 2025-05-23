@@ -390,6 +390,118 @@ def generate_news_for_company():
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 
+@app.route('/daily-summary', methods=['GET'])
+def daily_summary():
+    """
+    Generate daily summary endpoint optimized for website integration
+    Returns consolidated summary for multiple companies in lightweight JSON format
+    """
+    try:
+        request_id = datetime.now().strftime('%Y%m%d%H%M%S-') + str(hash(datetime.now().microsecond))[-4:]
+        logger.info(f"Request {request_id}: Received request to /daily-summary endpoint")
+        
+        # Get query parameters
+        companies_param = request.args.get('companies')
+        date_param = request.args.get('date')
+        time_filter = request.args.get('time_filter', WEEKLY_TIME_PERIOD)
+        
+        # Parse companies list or use default clients
+        if companies_param:
+            company_names = [name.strip() for name in companies_param.split(',')]
+        else:
+            # Get all client companies from config
+            clients = load_entities("client")
+            company_names = [client["name"] for client in clients[:5]]  # Limit to first 5 for performance
+        
+        logger.info(f"Request {request_id}: Processing {len(company_names)} companies")
+        
+        # Collect news for all companies
+        all_articles = []
+        companies_included = []
+        total_articles = 0
+        
+        for company_name in company_names:
+            try:
+                articles = get_client_news(company_name, time_filter, max_results=10)
+                if articles:
+                    all_articles.extend(articles)
+                    companies_included.append(company_name)
+                    total_articles += len(articles)
+                    logger.info(f"Request {request_id}: Found {len(articles)} articles for {company_name}")
+            except Exception as e:
+                logger.warning(f"Request {request_id}: Error getting news for {company_name}: {str(e)}")
+                continue
+        
+        # Generate consolidated summary if we have articles
+        summary = ""
+        if all_articles:
+            try:
+                # Create a consolidated data structure for the prompt
+                companies_data = {}
+                for company_name in companies_included:
+                    company_articles = [article for article in all_articles 
+                                      if company_name.lower() in article.get('title', '').lower() 
+                                      or company_name.lower() in article.get('body', '').lower()]
+                    if company_articles:
+                        companies_data[company_name] = company_articles
+                
+                # Generate summary using existing Claude API client
+                api_client = ClaudeApiClient()
+                news_data_str = json.dumps(companies_data, indent=2)
+                
+                prompt = f"""## Daily Financial Services News Summary
+
+Create a concise daily executive summary for financial service companies. This summary will be displayed on a website for executives who develop software and back office services for financial service companies.
+
+Your output must be:
+- Direct and factual
+- Focused on the most important news developments
+- Written in clean markdown format
+- Optimized for web display
+
+### Instructions:
+
+1. Create a markdown document with today's date as a level-1 heading
+2. For each company with significant news, create a level-2 heading with the company name
+3. Write a single concise paragraph (2-4 sentences) highlighting:
+   - Most significant recent developments
+   - Technology initiatives, financial performance, partnerships, new products
+   - Specific facts and figures when available
+   - Relevance to financial service software/service providers
+
+4. Only include companies with meaningful news developments
+5. Format as clean markdown suitable for web display
+
+### News Data:
+{news_data_str}
+"""
+                
+                system_prompt = 'You are an expert financial analyst creating daily executive summaries for the financial services industry.'
+                summary = api_client.generate_summary(prompt, system_prompt)
+                logger.info(f"Request {request_id}: Generated summary ({len(summary)} characters)")
+                
+            except Exception as e:
+                logger.error(f"Request {request_id}: Error generating summary: {str(e)}", exc_info=True)
+                summary = f"Error generating summary: {str(e)}"
+        
+        # Create response optimized for website display
+        response = {
+            'date': date_param or datetime.now().strftime('%Y-%m-%d'),
+            'generated_at': datetime.now().isoformat(),
+            'summary': summary,
+            'companies_included': companies_included,
+            'total_articles': total_articles,
+            'time_period': TIME_DESCRIPTIONS.get(time_filter, 'custom')
+        }
+        
+        logger.info(f"Request {request_id}: Daily summary completed with {len(companies_included)} companies, {total_articles} articles")
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Daily summary error: {str(e)}", exc_info=True)
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+
+
 @app.route('/healthcheck', methods=['GET'])
 def healthcheck():
     """Simple healthcheck endpoint to verify the API is running"""

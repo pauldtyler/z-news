@@ -261,6 +261,100 @@ def create_consolidated_summary(client_articles: List[Dict[str, Any]],
     return summary
 
 
+def generate_daily_summary(companies_list: List[str] = None, time_filter: str = WEEKLY_TIME_PERIOD) -> Dict[str, Any]:
+    """
+    Generate daily summary for multiple companies optimized for website integration
+    
+    Args:
+        companies_list: List of company names (defaults to first 5 clients)
+        time_filter: Time filter for search results
+        
+    Returns:
+        Dictionary with daily summary data optimized for website display
+    """
+    from datetime import datetime
+    
+    # Use default companies if none provided
+    if not companies_list:
+        clients = load_entities("client")
+        companies_list = [client["name"] for client in clients[:5]]
+    
+    # Collect news for all companies
+    all_articles = []
+    companies_included = []
+    total_articles = 0
+    
+    for company_name in companies_list:
+        try:
+            articles = get_client_news(company_name, time_filter, max_results=10)
+            if articles:
+                all_articles.extend(articles)
+                companies_included.append(company_name)
+                total_articles += len(articles)
+        except Exception:
+            continue
+    
+    # Generate consolidated summary if we have articles
+    summary = ""
+    if all_articles:
+        try:
+            # Create a consolidated data structure for the prompt
+            companies_data = {}
+            for company_name in companies_included:
+                company_articles = [article for article in all_articles 
+                                  if company_name.lower() in article.get('title', '').lower() 
+                                  or company_name.lower() in article.get('body', '').lower()]
+                if company_articles:
+                    companies_data[company_name] = company_articles
+            
+            # Generate summary using existing Claude API client
+            api_client = ClaudeApiClient()
+            news_data_str = json.dumps(companies_data, indent=2)
+            
+            prompt = f"""## Daily Financial Services News Summary
+
+Create a concise daily executive summary for financial service companies. This summary will be displayed on a website for executives who develop software and back office services for financial service companies.
+
+Your output must be:
+- Direct and factual
+- Focused on the most important news developments
+- Written in clean markdown format
+- Optimized for web display
+
+### Instructions:
+
+1. Create a markdown document with today's date as a level-1 heading
+2. For each company with significant news, create a level-2 heading with the company name
+3. Write a single concise paragraph (2-4 sentences) highlighting:
+   - Most significant recent developments
+   - Technology initiatives, financial performance, partnerships, new products
+   - Specific facts and figures when available
+   - Relevance to financial service software/service providers
+
+4. Only include companies with meaningful news developments
+5. Format as clean markdown suitable for web display
+
+### News Data:
+{news_data_str}
+"""
+            
+            system_prompt = 'You are an expert financial analyst creating daily executive summaries for the financial services industry.'
+            summary = api_client.generate_summary(prompt, system_prompt)
+            
+        except Exception as e:
+            summary = f"Error generating summary: {str(e)}"
+    
+    # Create response optimized for website display
+    return {
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'generated_at': datetime.now().isoformat(),
+        'summary': summary,
+        'companies_included': companies_included,
+        'total_articles': total_articles,
+        'time_period': TIME_DESCRIPTIONS.get(time_filter, 'custom')
+    }
+
+
 # AWS Lambda handler function
 def lambda_handler(event, context):
     """
@@ -274,6 +368,28 @@ def lambda_handler(event, context):
         API Gateway response object with generated news data and/or summary
     """
     try:
+        # Check if this is a daily summary request
+        if event.get('action') == 'daily_summary':
+            companies_param = event.get('companies')
+            time_filter = event.get('time_filter', WEEKLY_TIME_PERIOD)
+            
+            # Parse companies list
+            companies_list = None
+            if companies_param:
+                if isinstance(companies_param, str):
+                    companies_list = [name.strip() for name in companies_param.split(',')]
+                elif isinstance(companies_param, list):
+                    companies_list = companies_param
+            
+            # Generate daily summary
+            response_data = generate_daily_summary(companies_list, time_filter)
+            
+            return {
+                'statusCode': 200,
+                'headers': {'Content-Type': 'application/json'},
+                'body': json.dumps(response_data)
+            }
+        
         # Parse request data based on whether it's coming from API Gateway
         if 'body' in event:
             # API Gateway request with body
