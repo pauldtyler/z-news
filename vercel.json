@@ -1,0 +1,22 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "simple_api.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "simple_api.py"
+    },
+    {
+      "src": "/(daily-summary|healthcheck|status)",
+      "dest": "simple_api.py"
+    }
+  ],
+  "env": {
+    "PYTHONPATH": "."
+  }
+}

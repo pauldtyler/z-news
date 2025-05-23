@@ -129,8 +129,25 @@ def generate_summary_from_csv(csv_path):
         with open(summary_filename, 'w') as f:
             f.write(summary)
         
+        # Create JSON output for API consumption
+        json_output = {
+            "date": datetime.now().strftime('%Y-%m-%d'),
+            "generated_at": datetime.now().isoformat(),
+            "summary": summary,
+            "companies_included": list(df['client'].unique()),
+            "total_articles": len(df),
+            "time_period": "recent data",
+            "status": "success"
+        }
+        
+        # Save JSON file for API
+        json_filename = "daily_summary.json"
+        with open(json_filename, 'w') as f:
+            json.dump(json_output, f, indent=2)
+        
         print(f"Daily news summary saved to: {summary_filename}")
-        return summary_filename
+        print(f"API JSON file saved to: {json_filename}")
+        return summary_filename, json_filename
     else:
         print("Failed to generate summary")
         return None

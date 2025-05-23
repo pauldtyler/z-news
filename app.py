@@ -393,7 +393,7 @@ def generate_news_for_company():
 @app.route('/daily-summary', methods=['GET'])
 def daily_summary():
     """
-    Generate daily summary endpoint optimized for website integration
+    Generate daily summary endpoint optimized for website integration using existing CSV data
     Returns consolidated summary for multiple companies in lightweight JSON format
     """
     try:
@@ -403,51 +403,91 @@ def daily_summary():
         # Get query parameters
         companies_param = request.args.get('companies')
         date_param = request.args.get('date')
-        time_filter = request.args.get('time_filter', WEEKLY_TIME_PERIOD)
         
-        # Parse companies list or use default clients
-        if companies_param:
-            company_names = [name.strip() for name in companies_param.split(',')]
-        else:
-            # Get all client companies from config
+        # Try to load existing CSV data instead of fetching new data
+        csv_path = None
+        try:
+            # Try to read the latest daily combined CSV file (local development)
+            with open("data/latest_daily_combined_csv.txt", "r") as f:
+                csv_path = f.read().strip()
+            logger.info(f"Request {request_id}: Using latest daily CSV: {csv_path}")
+        except:
+            # If that fails, look for the most recent daily combined CSV (local development)
+            import glob
+            csv_files = glob.glob("data/daily_combined_*.csv")
+            if csv_files:
+                csv_path = max(csv_files, key=os.path.getctime)
+                logger.info(f"Request {request_id}: Using most recent daily CSV: {csv_path}")
+            else:
+                # Fall back to sample data (for Lambda deployment)
+                if os.path.exists("sample_data.csv"):
+                    csv_path = "sample_data.csv"
+                    logger.info(f"Request {request_id}: Using sample data: {csv_path}")
+        
+        if not csv_path or not os.path.exists(csv_path):
+            logger.warning(f"Request {request_id}: No CSV data found")
+            # Return fallback response
+            return generate_fallback_response(companies_param, date_param, request_id)
+        
+        # Load CSV data
+        import pandas as pd
+        df = pd.read_csv(csv_path)
+        logger.info(f"Request {request_id}: Loaded {len(df)} articles from {csv_path}")
+        
+        # Load client and competitor lists for categorization
+        client_names = set()
+        try:
             clients = load_entities("client")
-            company_names = [client["name"] for client in clients[:5]]  # Limit to first 5 for performance
+            client_names = set([client["name"] for client in clients])
+            competitors = load_entities("competitor")
+            # competitor_names = set([competitor["name"] for competitor in competitors])  # Not used currently
+        except Exception as e:
+            logger.warning(f"Request {request_id}: Error loading entity lists: {str(e)}")
         
-        logger.info(f"Request {request_id}: Processing {len(company_names)} companies")
+        # Filter companies if specified
+        if companies_param:
+            requested_companies = [name.strip() for name in companies_param.split(',')]
+            df = df[df['client'].isin(requested_companies)]
+            logger.info(f"Request {request_id}: Filtered to {len(requested_companies)} requested companies")
         
-        # Collect news for all companies
-        all_articles = []
-        companies_included = []
-        total_articles = 0
+        # Create data structure for Claude
+        data_for_claude = {"clients": {}, "competitors": {}}
         
-        for company_name in company_names:
-            try:
-                articles = get_client_news(company_name, time_filter, max_results=10)
-                if articles:
-                    all_articles.extend(articles)
-                    companies_included.append(company_name)
-                    total_articles += len(articles)
-                    logger.info(f"Request {request_id}: Found {len(articles)} articles for {company_name}")
-            except Exception as e:
-                logger.warning(f"Request {request_id}: Error getting news for {company_name}: {str(e)}")
-                continue
-        
-        # Generate consolidated summary if we have articles
-        summary = ""
-        if all_articles:
-            try:
-                # Create a consolidated data structure for the prompt
-                companies_data = {}
-                for company_name in companies_included:
-                    company_articles = [article for article in all_articles 
-                                      if company_name.lower() in article.get('title', '').lower() 
-                                      or company_name.lower() in article.get('body', '').lower()]
-                    if company_articles:
-                        companies_data[company_name] = company_articles
+        for entity, df_group in df.groupby('client'):
+            # Determine if this is a client or competitor
+            entity_type = "clients" if entity in client_names else "competitors"
+            
+            articles = []
+            for _, row in df_group.iterrows():
+                # Convert date to string if needed
+                date_value = row.get('date', '')
+                if hasattr(date_value, 'strftime'):
+                    date_str = date_value.strftime('%Y-%m-%d')
+                else:
+                    date_str = str(date_value)
                 
-                # Generate summary using existing Claude API client
+                article = {
+                    'title': row.get('title', ''),
+                    'date': date_str,
+                    'source': row.get('source', ''),
+                    'excerpt': row.get('excerpt', ''),
+                    'url': row.get('url', '')
+                }
+                articles.append(article)
+            
+            data_for_claude[entity_type][entity] = articles
+        
+        companies_included = list(df['client'].unique())
+        total_articles = len(df)
+        
+        logger.info(f"Request {request_id}: Found {len(companies_included)} companies with {total_articles} articles")
+        
+        # Generate summary
+        summary = ""
+        if total_articles > 0:
+            try:
                 api_client = ClaudeApiClient()
-                news_data_str = json.dumps(companies_data, indent=2)
+                json_data = json.dumps(data_for_claude, indent=2)
                 
                 prompt = f"""## Daily Financial Services News Summary
 
@@ -462,44 +502,113 @@ Your output must be:
 ### Instructions:
 
 1. Create a markdown document with today's date as a level-1 heading
-2. For each company with significant news, create a level-2 heading with the company name
-3. Write a single concise paragraph (2-4 sentences) highlighting:
+2. Create two main sections if both exist:
+   - "Client Companies" - for companies in the "clients" object
+   - "Competitor Companies" - for companies in the "competitors" object
+3. For each company with news, create a level-2 heading with the company name
+4. Write a single concise paragraph (2-4 sentences) highlighting:
    - Most significant recent developments
    - Technology initiatives, financial performance, partnerships, new products
    - Specific facts and figures when available
    - Relevance to financial service software/service providers
-
-4. Only include companies with meaningful news developments
-5. Format as clean markdown suitable for web display
+5. Only include companies with meaningful news developments
+6. Format as clean markdown suitable for web display
 
 ### News Data:
-{news_data_str}
+{json_data}
 """
                 
                 system_prompt = 'You are an expert financial analyst creating daily executive summaries for the financial services industry.'
                 summary = api_client.generate_summary(prompt, system_prompt)
-                logger.info(f"Request {request_id}: Generated summary ({len(summary)} characters)")
+                logger.info(f"Request {request_id}: Generated summary ({len(summary) if summary else 0} characters)")
                 
             except Exception as e:
                 logger.error(f"Request {request_id}: Error generating summary: {str(e)}", exc_info=True)
-                summary = f"Error generating summary: {str(e)}"
+                summary = generate_error_summary(companies_included)
         
-        # Create response optimized for website display
+        if not summary:
+            summary = generate_error_summary(companies_included)
+        
+        # Create response
         response = {
             'date': date_param or datetime.now().strftime('%Y-%m-%d'),
             'generated_at': datetime.now().isoformat(),
             'summary': summary,
             'companies_included': companies_included,
             'total_articles': total_articles,
-            'time_period': TIME_DESCRIPTIONS.get(time_filter, 'custom')
+            'time_period': 'recent data',
+            'status': 'success' if total_articles > 0 else 'no_data'
         }
         
-        logger.info(f"Request {request_id}: Daily summary completed with {len(companies_included)} companies, {total_articles} articles")
+        logger.info(f"Request {request_id}: Daily summary completed successfully")
         return jsonify(response)
         
     except Exception as e:
-        logger.error(f"Daily summary error: {str(e)}", exc_info=True)
-        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
+        logger.error(f"Request {request_id}: Daily summary error: {str(e)}", exc_info=True)
+        return generate_fallback_response(companies_param, date_param, request_id)
+
+
+def generate_fallback_response(companies_param, date_param, request_id):
+    """Generate a fallback response when no data is available"""
+    logger.info(f"Request {request_id}: Generating fallback response")
+    
+    # Default companies if none specified
+    companies_included = []
+    if companies_param:
+        companies_included = [name.strip() for name in companies_param.split(',')]
+    else:
+        try:
+            clients = load_entities("client")
+            companies_included = [client["name"] for client in clients[:3]]
+        except:
+            companies_included = ["Ameriprise Financial, Inc.", "American National Life Insurance", "Advisors Excel, LLC"]
+    
+    summary = f"""# Financial Services News Summary - {datetime.now().strftime('%B %d, %Y')}
+
+## Service Status
+
+The news data is being updated. Please check back later for the latest financial services news and analysis.
+
+## Companies Monitored
+
+The following companies are being tracked for news updates:
+
+{chr(10).join([f'- {company}' for company in companies_included])}
+
+## Next Update
+
+The system will refresh with new data shortly. Thank you for your patience.
+
+---
+*This is an automated summary service for financial services industry news.*
+"""
+    
+    return jsonify({
+        'date': date_param or datetime.now().strftime('%Y-%m-%d'),
+        'generated_at': datetime.now().isoformat(),
+        'summary': summary,
+        'companies_included': companies_included,
+        'total_articles': 0,
+        'time_period': 'recent data',
+        'status': 'service_unavailable'
+    })
+
+
+def generate_error_summary(companies_included):
+    """Generate an error summary when summary generation fails"""
+    return f"""# Financial Services News Summary - {datetime.now().strftime('%B %d, %Y')}
+
+## Companies Monitored
+
+{chr(10).join([f'- {company}' for company in companies_included])}
+
+## Status
+
+News data is available but summary generation is temporarily unavailable. Please try again later.
+
+---
+*This is an automated summary service for financial services industry news.*
+"""
 
 
 @app.route('/healthcheck', methods=['GET'])

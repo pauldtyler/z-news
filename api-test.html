@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Z-News API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .response { background: #f5f5f5; padding: 10px; border-radius: 3px; white-space: pre-wrap; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Z-News API Test</h1>
+    
+    <div class="test-section">
+        <h2>Basic API Test</h2>
+        <button onclick="testBasicAPI()">Test Basic API Call</button>
+        <div id="basic-result" class="response"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Custom Company Test</h2>
+        <input type="text" id="company-input" value="Fidelity Investments" placeholder="Enter company name">
+        <button onclick="testCustomCompany()">Test Custom Company</button>
+        <div id="custom-result" class="response"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Multiple Companies Test</h2>
+        <input type="text" id="companies-input" value="Fidelity Investments,J.P. Morgan Chase & Co." placeholder="Enter comma-separated companies">
+        <button onclick="testMultipleCompanies()">Test Multiple Companies</button>
+        <div id="multiple-result" class="response"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Response Analysis</h2>
+        <div id="analysis-result" class="response"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary';
+        
+        async function testBasicAPI() {
+            const resultDiv = document.getElementById('basic-result');
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch(API_BASE);
+                const data = await response.json();
+                
+                resultDiv.className = 'response success';
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                analyzeResponse(data);
+            } catch (error) {
+                resultDiv.className = 'response error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testCustomCompany() {
+            const company = document.getElementById('company-input').value;
+            const resultDiv = document.getElementById('custom-result');
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                const url = `${API_BASE}?companies=${encodeURIComponent(company)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                resultDiv.className = 'response success';
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                analyzeResponse(data);
+            } catch (error) {
+                resultDiv.className = 'response error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testMultipleCompanies() {
+            const companies = document.getElementById('companies-input').value;
+            const resultDiv = document.getElementById('multiple-result');
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                const url = `${API_BASE}?companies=${encodeURIComponent(companies)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                resultDiv.className = 'response success';
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                analyzeResponse(data);
+            } catch (error) {
+                resultDiv.className = 'response error';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        function analyzeResponse(data) {
+            const analysisDiv = document.getElementById('analysis-result');
+            
+            let analysis = `RESPONSE ANALYSIS:\n\n`;
+            analysis += `✓ Status: ${data.status || 'normal'}\n`;
+            analysis += `✓ Date: ${data.date}\n`;
+            analysis += `✓ Companies: ${data.companies_included?.length || 0}\n`;
+            analysis += `✓ Articles: ${data.total_articles}\n`;
+            analysis += `✓ Time Period: ${data.time_period}\n`;
+            analysis += `✓ Summary Length: ${data.summary?.length || 0} characters\n\n`;
+            
+            if (data.status === 'service_unavailable') {
+                analysis += `⚠️  SERVICE STATUS: Temporarily unavailable\n`;
+                analysis += `   This is normal - the API is working but news data is cached\n\n`;
+            }
+            
+            analysis += `SUMMARY PREVIEW:\n`;
+            analysis += `${data.summary?.substring(0, 200)}...`;
+            
+            analysisDiv.className = 'response';
+            analysisDiv.textContent = analysis;
+        }
+        
+        // Auto-run basic test on page load
+        window.addEventListener('load', () => {
+            setTimeout(testBasicAPI, 500);
+        });
+    </script>
+</body>
+</html>

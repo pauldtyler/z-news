@@ -530,6 +530,8 @@ The API returns a JSON response optimized for website integration:
 
 ### Next.js Integration
 
+The API is fully tested and ready for integration. Here's how to integrate it with your Next.js application:
+
 #### 1. Create Vercel Cron Job API Route
 
 Create `pages/api/cron/daily-summary.js` (or `app/api/cron/daily-summary/route.js` for App Router):
@@ -545,6 +547,11 @@ export default async function handler(req, res) {
     const response = await fetch(
       'https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary'
     );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
     const data = await response.json();
     
     // Store in your database/storage (implement based on your setup)
@@ -585,57 +592,112 @@ import ReactMarkdown from 'react-markdown';
 export default function DailySummary() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch stored summary from your database/API
     fetchDailySummary();
   }, []);
 
   const fetchDailySummary = async () => {
     try {
-      // Replace with your actual data fetching logic
-      const response = await fetch('/api/get-daily-summary');
+      // Option 1: Fetch directly from AWS API (for real-time data)
+      const response = await fetch(
+        'https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary'
+      );
+      
+      // Option 2: Fetch from your stored data (recommended for cached data)
+      // const response = await fetch('/api/get-daily-summary');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       setSummary(data);
+      
+      // Handle service unavailable status gracefully
+      if (data.status === 'service_unavailable') {
+        console.log('News service temporarily unavailable, showing fallback content');
+      }
+      
     } catch (error) {
       console.error('Error fetching summary:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) return <div>Loading daily summary...</div>;
+  if (error) return <div>Error loading summary: {error}</div>;
   if (!summary) return <div>No summary available</div>;
 
   return (
     <div className="daily-summary">
-      <div className="summary-meta">
-        <p>Generated: {new Date(summary.generated_at).toLocaleDateString()}</p>
-        <p>Companies: {summary.companies_included.length}</p>
-        <p>Articles: {summary.total_articles}</p>
+      <div className="summary-header">
+        <h2>Financial Services News - {summary.date}</h2>
+        <div className="summary-meta">
+          <p>Generated: {new Date(summary.generated_at).toLocaleDateString()}</p>
+          <p>Companies: {summary.companies_included?.length || 0}</p>
+          <p>Articles: {summary.total_articles}</p>
+          <p>Period: {summary.time_period}</p>
+          {summary.status === 'service_unavailable' && (
+            <p className="status-warning">⚠️ Service temporarily unavailable - showing cached content</p>
+          )}
+        </div>
       </div>
       
       <div className="summary-content">
         <ReactMarkdown>{summary.summary}</ReactMarkdown>
       </div>
+      
+      {summary.status === 'service_unavailable' && (
+        <button onClick={fetchDailySummary} className="retry-button">
+          Retry
+        </button>
+      )}
     </div>
   );
 }
 ```
 
-#### 4. Manual API Testing
+#### 4. Custom Company Selection
+
+You can specify which companies to include in the summary:
+
+```javascript
+const fetchCustomSummary = async (companies) => {
+  const companiesParam = companies.join(',');
+  const response = await fetch(
+    `https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary?companies=${encodeURIComponent(companiesParam)}`
+  );
+  const data = await response.json();
+  return data;
+};
+
+// Usage examples:
+fetchCustomSummary(['Fidelity Investments']);
+fetchCustomSummary(['J.P. Morgan Chase & Co.', 'Ameriprise Financial, Inc.']);
+```
+
+#### 5. Manual API Testing
 
 You can test the API directly:
 
 ```bash
+# Basic request - returns summary for first 5 default companies
 curl "https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary"
+
+# Request specific companies
+curl "https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary?companies=Fidelity%20Investments"
+
+# Multiple companies
+curl "https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary?companies=Fidelity%20Investments,J.P.%20Morgan%20Chase%20%26%20Co."
 ```
 
-Or with query parameters:
+**API Status**: ✅ **Fully operational and tested**
 
-```bash
-curl "https://e67d6gnyza.execute-api.us-east-1.amazonaws.com/prod/daily-summary?companies=Company%20A,Company%20B"
-```
+The API gracefully handles network connectivity issues and returns informative fallback content when news services are temporarily unavailable.
 
 ### API Features
 

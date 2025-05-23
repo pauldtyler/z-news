@@ -261,55 +261,95 @@ def create_consolidated_summary(client_articles: List[Dict[str, Any]],
     return summary
 
 
-def generate_daily_summary(companies_list: List[str] = None, time_filter: str = WEEKLY_TIME_PERIOD) -> Dict[str, Any]:
+def generate_daily_summary_from_csv(companies_list: List[str] = None) -> Dict[str, Any]:
     """
-    Generate daily summary for multiple companies optimized for website integration
+    Generate daily summary for multiple companies using existing CSV data
     
     Args:
-        companies_list: List of company names (defaults to first 5 clients)
-        time_filter: Time filter for search results
+        companies_list: List of company names (defaults to all companies in CSV)
         
     Returns:
         Dictionary with daily summary data optimized for website display
     """
     from datetime import datetime
+    import pandas as pd
+    import glob
+    import os
     
-    # Use default companies if none provided
-    if not companies_list:
+    # Try to load existing CSV data instead of fetching new data
+    csv_path = None
+    try:
+        # Try to read the latest daily combined CSV file (local development)
+        with open("data/latest_daily_combined_csv.txt", "r") as f:
+            csv_path = f.read().strip()
+    except:
+        # If that fails, look for the most recent daily combined CSV (local development)
+        csv_files = glob.glob("data/daily_combined_*.csv")
+        if csv_files:
+            csv_path = max(csv_files, key=os.path.getctime)
+        else:
+            # Fall back to sample data (for Lambda deployment)
+            if os.path.exists("sample_data.csv"):
+                csv_path = "sample_data.csv"
+    
+    if not csv_path or not os.path.exists(csv_path):
+        # Return fallback response
+        return generate_fallback_daily_summary(companies_list)
+    
+    # Load CSV data
+    df = pd.read_csv(csv_path)
+    
+    # Load client and competitor lists for categorization
+    client_names = set()
+    competitor_names = set()
+    try:
         clients = load_entities("client")
-        companies_list = [client["name"] for client in clients[:5]]
+        client_names = set([client["name"] for client in clients])
+        competitors = load_entities("competitor")
+        competitor_names = set([competitor["name"] for competitor in competitors])
+    except Exception:
+        pass
     
-    # Collect news for all companies
-    all_articles = []
-    companies_included = []
-    total_articles = 0
+    # Filter companies if specified
+    if companies_list:
+        df = df[df['client'].isin(companies_list)]
     
-    for company_name in companies_list:
-        try:
-            articles = get_client_news(company_name, time_filter, max_results=10)
-            if articles:
-                all_articles.extend(articles)
-                companies_included.append(company_name)
-                total_articles += len(articles)
-        except Exception:
-            continue
+    # Create data structure for Claude
+    data_for_claude = {"clients": {}, "competitors": {}}
     
-    # Generate consolidated summary if we have articles
-    summary = ""
-    if all_articles:
-        try:
-            # Create a consolidated data structure for the prompt
-            companies_data = {}
-            for company_name in companies_included:
-                company_articles = [article for article in all_articles 
-                                  if company_name.lower() in article.get('title', '').lower() 
-                                  or company_name.lower() in article.get('body', '').lower()]
-                if company_articles:
-                    companies_data[company_name] = company_articles
+    for entity, df_group in df.groupby('client'):
+        # Determine if this is a client or competitor
+        entity_type = "clients" if entity in client_names else "competitors"
+        
+        articles = []
+        for _, row in df_group.iterrows():
+            # Convert date to string if needed
+            date_value = row.get('date', '')
+            if hasattr(date_value, 'strftime'):
+                date_str = date_value.strftime('%Y-%m-%d')
+            else:
+                date_str = str(date_value)
             
-            # Generate summary using existing Claude API client
+            article = {
+                'title': row.get('title', ''),
+                'date': date_str,
+                'source': row.get('source', ''),
+                'excerpt': row.get('excerpt', ''),
+                'url': row.get('url', '')
+            }
+            articles.append(article)
+        
+        data_for_claude[entity_type][entity] = articles
+    
+    companies_included = list(df['client'].unique())
+    total_articles = len(df)
+    
+    # Generate summary
+    summary = ""
+    if total_articles > 0:
+        try:
             api_client = ClaudeApiClient()
-            news_data_str = json.dumps(companies_data, indent=2)
+            json_data = json.dumps(data_for_claude, indent=2)
             
             prompt = f"""## Daily Financial Services News Summary
 
@@ -324,18 +364,20 @@ Your output must be:
 ### Instructions:
 
 1. Create a markdown document with today's date as a level-1 heading
-2. For each company with significant news, create a level-2 heading with the company name
-3. Write a single concise paragraph (2-4 sentences) highlighting:
+2. Create two main sections if both exist:
+   - "Client Companies" - for companies in the "clients" object
+   - "Competitor Companies" - for companies in the "competitors" object
+3. For each company with news, create a level-2 heading with the company name
+4. Write a single concise paragraph (2-4 sentences) highlighting:
    - Most significant recent developments
    - Technology initiatives, financial performance, partnerships, new products
    - Specific facts and figures when available
    - Relevance to financial service software/service providers
-
-4. Only include companies with meaningful news developments
-5. Format as clean markdown suitable for web display
+5. Only include companies with meaningful news developments
+6. Format as clean markdown suitable for web display
 
 ### News Data:
-{news_data_str}
+{json_data}
 """
             
             system_prompt = 'You are an expert financial analyst creating daily executive summaries for the financial services industry.'
@@ -344,6 +386,9 @@ Your output must be:
         except Exception as e:
             summary = f"Error generating summary: {str(e)}"
     
+    if not summary:
+        summary = generate_error_daily_summary(companies_included)
+    
     # Create response optimized for website display
     return {
         'date': datetime.now().strftime('%Y-%m-%d'),
@@ -351,8 +396,71 @@ Your output must be:
         'summary': summary,
         'companies_included': companies_included,
         'total_articles': total_articles,
-        'time_period': TIME_DESCRIPTIONS.get(time_filter, 'custom')
+        'time_period': 'recent data',
+        'status': 'success' if total_articles > 0 else 'no_data'
     }
+
+
+def generate_fallback_daily_summary(companies_list: List[str] = None) -> Dict[str, Any]:
+    """Generate a fallback response when no CSV data is available"""
+    from datetime import datetime
+    
+    # Default companies if none specified
+    if not companies_list:
+        try:
+            clients = load_entities("client")
+            companies_list = [client["name"] for client in clients[:3]]
+        except:
+            companies_list = ["Ameriprise Financial, Inc.", "American National Life Insurance", "Advisors Excel, LLC"]
+    
+    summary = f"""# Financial Services News Summary - {datetime.now().strftime('%B %d, %Y')}
+
+## Service Status
+
+The news data is being updated. Please check back later for the latest financial services news and analysis.
+
+## Companies Monitored
+
+The following companies are being tracked for news updates:
+
+{chr(10).join([f'- {company}' for company in companies_list])}
+
+## Next Update
+
+The system will refresh with new data shortly. Thank you for your patience.
+
+---
+*This is an automated summary service for financial services industry news.*
+"""
+    
+    return {
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'generated_at': datetime.now().isoformat(),
+        'summary': summary,
+        'companies_included': companies_list,
+        'total_articles': 0,
+        'time_period': 'recent data',
+        'status': 'service_unavailable'
+    }
+
+
+def generate_error_daily_summary(companies_included: List[str]) -> str:
+    """Generate an error summary when summary generation fails"""
+    from datetime import datetime
+    
+    return f"""# Financial Services News Summary - {datetime.now().strftime('%B %d, %Y')}
+
+## Companies Monitored
+
+{chr(10).join([f'- {company}' for company in companies_included])}
+
+## Status
+
+News data is available but summary generation is temporarily unavailable. Please try again later.
+
+---
+*This is an automated summary service for financial services industry news.*
+"""
 
 
 # AWS Lambda handler function
@@ -371,7 +479,6 @@ def lambda_handler(event, context):
         # Check if this is a daily summary request
         if event.get('action') == 'daily_summary':
             companies_param = event.get('companies')
-            time_filter = event.get('time_filter', WEEKLY_TIME_PERIOD)
             
             # Parse companies list
             companies_list = None
@@ -381,8 +488,8 @@ def lambda_handler(event, context):
                 elif isinstance(companies_param, list):
                     companies_list = companies_param
             
-            # Generate daily summary
-            response_data = generate_daily_summary(companies_list, time_filter)
+            # Generate daily summary from CSV data
+            response_data = generate_daily_summary_from_csv(companies_list)
             
             return {
                 'statusCode': 200,
