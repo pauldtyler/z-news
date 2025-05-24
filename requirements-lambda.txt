@@ -3,4 +3,4 @@ pandas==1.5.3
 python-dotenv==0.21.1
 flask==2.0.3
 werkzeug==2.0.3
-# Remove duckduckgo-search as it depends on curl_cffi which has binary components
+requests>=2.25.0
