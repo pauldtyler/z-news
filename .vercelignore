@@ -1,0 +1,30 @@
+# Development files
+.env.local
+.env.development
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Archive and docs
+archive/
+docs/
+scripts/
+deployment/
+
+# Data files (too large)
+data/
+*.csv
+*.json.backup
+
+# Node modules
+node_modules/
+
+# IDE files
+.vscode/
+*.code-workspace
+.DS_Store
+
+# Git
+.git/
+.gitignore

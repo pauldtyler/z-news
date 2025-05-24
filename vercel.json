@@ -8,15 +8,13 @@
   ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "simple_api.py"
-    },
-    {
       "src": "/(daily-summary|healthcheck|status)",
       "dest": "simple_api.py"
     }
   ],
   "env": {
-    "PYTHONPATH": "."
+    "PYTHONPATH": ".",
+    "NEWSAPI_API_KEY": "@newsapi_api_key",
+    "ANTHROPIC_API_KEY": "@anthropic_api_key"
   }
 }
